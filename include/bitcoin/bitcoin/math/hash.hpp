@@ -43,10 +43,12 @@ typedef std::vector<short_hash> short_hash_list;
 typedef std::vector<hash_digest> hash_list;
 typedef std::vector<long_hash> long_hash_list;
 
-BC_CONSTEXPR hash_digest null_hash =
+BC_CONSTEXPR hash_digest null_hash
 {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    }
 };
 
 BC_CONSTEXPR short_hash null_short_hash =
