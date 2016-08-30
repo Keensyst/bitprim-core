@@ -116,14 +116,15 @@ hash_digest hash_transaction(const transaction_type& tx,
 
 hash_digest generate_merkle_root(const transaction_list& transactions)
 {
-    if (txs.empty()) return null_hash;
+    if (transactions.empty()) return null_hash;
     
     constexpr size_t counter_machine_size = 20; // It is enough for 1'048'576 Txs
-    using counter_machine_t = counter_machine<hash_digest, merkle_op, counter_machine_size>;
+    using counter_machine_t = tao::algorithms::counter_machine<hash_digest, 
+                              merkle_op, counter_machine_size>;
 
     counter_machine_t c {merkle_op{}, null_hash};
 
-    for (auto&& tx : txs) {
+    for (auto&& tx : transactions) {
         c.add(tx.hash());
     }
 
