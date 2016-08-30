@@ -59,7 +59,8 @@ public:
 	counter_machine(Op op, T const& e)
 		: op_{op}, 
 		  e_{e}, 
-		  l{f}
+		  f{std::begin(data)},
+		  l{std::begin(data)}
 	{}
 
 	counter_machine(counter_machine const&) = delete;
@@ -86,8 +87,9 @@ public:
 private:
 	const Op op_;
 	const T e_;
+	T data[Size];
 public:
-	T f[Size];
+	T* f;
 	T* l;
 };
 
