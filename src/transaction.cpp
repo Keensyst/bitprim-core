@@ -32,6 +32,8 @@
 #include <bitcoin/bitcoin/utility/logger.hpp>
 #include <bitcoin/bitcoin/utility/serializer.hpp>
 
+#include <tao/algorithm/counter_machine.hpp>
+
 namespace libbitcoin {
 
 hash_digest hash_transaction_impl(const transaction_type& tx,
@@ -54,63 +56,87 @@ hash_digest hash_transaction(const transaction_type& tx,
     return hash_transaction_impl(tx, &hash_type_code);
 }
 
-hash_digest build_merkle_tree(hash_list& merkle)
-{
-    // Stop if hash list is empty.
-    if (merkle.empty())
-        return null_hash;
+// hash_digest build_merkle_tree(hash_list& merkle)
+// {
+//     // Stop if hash list is empty.
+//     if (merkle.empty())
+//         return null_hash;
 
-    if (merkle.size() == 1)
-        return merkle[0];
+//     if (merkle.size() == 1)
+//         return merkle[0];
 
-    // While there is more than 1 hash in the list, keep looping.
-    while (merkle.size() > 1)
-    {
-        // If number of hashes is odd, duplicate last hash in the list.
-        if (merkle.size() % 2 != 0)
-            merkle.push_back(merkle.back());
+//     // While there is more than 1 hash in the list, keep looping.
+//     while (merkle.size() > 1)
+//     {
+//         // If number of hashes is odd, duplicate last hash in the list.
+//         if (merkle.size() % 2 != 0)
+//             merkle.push_back(merkle.back());
 
-        // List size is now even.
-        BITCOIN_ASSERT(merkle.size() % 2 == 0);
+//         // List size is now even.
+//         BITCOIN_ASSERT(merkle.size() % 2 == 0);
 
-        // New hash list.
-        hash_list new_merkle;
+//         // New hash list.
+//         hash_list new_merkle;
 
-        // Loop through hashes 2 at a time.
-        for (auto it = merkle.begin(); it != merkle.end(); it += 2)
-        {
-            // Join both current hashes together (concatenate).
-            data_chunk concat_data(hash_size * 2);
-            auto concat = make_serializer(concat_data.begin());
-            concat.write_hash(*it);
-            concat.write_hash(*(it + 1));
-            BITCOIN_ASSERT(concat.iterator() == concat_data.end());
+//         // Loop through hashes 2 at a time.
+//         for (auto it = merkle.begin(); it != merkle.end(); it += 2)
+//         {
+//             // Join both current hashes together (concatenate).
+//             data_chunk concat_data(hash_size * 2);
+//             auto concat = make_serializer(concat_data.begin());
+//             concat.write_hash(*it);
+//             concat.write_hash(*(it + 1));
+//             BITCOIN_ASSERT(concat.iterator() == concat_data.end());
 
-            // Hash both of the hashes.
-            const auto new_root = bitcoin_hash(concat_data);
+//             // Hash both of the hashes.
+//             const auto new_root = bitcoin_hash(concat_data);
 
-            // Add this to the new list.
-            new_merkle.push_back(new_root);
-        }
+//             // Add this to the new list.
+//             new_merkle.push_back(new_root);
+//         }
 
-        // This is the new list.
-        merkle = new_merkle;
-    }
+//         // This is the new list.
+//         merkle = new_merkle;
+//     }
 
-    // Finally we end up with a single item.
-    return merkle[0];
-}
+//     // Finally we end up with a single item.
+//     return merkle[0];
+// }
+
+// hash_digest generate_merkle_root(const transaction_list& transactions)
+// {
+//     // Generate list of transaction hashes.
+//     hash_list tx_hashes;
+//     for (const auto& tx: transactions)
+//         tx_hashes.push_back(hash_transaction(tx));
+
+//     // Build merkle tree.
+//     return build_merkle_tree(tx_hashes);
+// }
 
 hash_digest generate_merkle_root(const transaction_list& transactions)
 {
-    // Generate list of transaction hashes.
-    hash_list tx_hashes;
-    for (const auto& tx: transactions)
-        tx_hashes.push_back(hash_transaction(tx));
+    if (txs.empty()) return null_hash;
+    
+    constexpr size_t counter_machine_size = 20; // It is enough for 1'048'576 Txs
+    using counter_machine_t = counter_machine<hash_digest, merkle_op, counter_machine_size>;
 
-    // Build merkle tree.
-    return build_merkle_tree(tx_hashes);
+    counter_machine_t c {merkle_op{}, null_hash};
+
+    for (auto&& tx : txs) {
+        c.add(tx.hash());
+    }
+
+    auto f = c.f;
+    while (f != c.l - 1) {
+        if (*f != null_hash) {
+            c.add_to(*f, f);
+        }
+        ++f;
+    }
+    return *(c.l - 1);
 }
+
 
 std::string pretty(const transaction_input_type& input)
 {
