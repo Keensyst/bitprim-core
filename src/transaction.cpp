@@ -140,7 +140,7 @@ hash_digest generate_merkle_root(const transaction_list& transactions)
     counter_machine_t c {merkle_op{}, null_hash};
 
     for (auto&& tx : transactions) {
-        c.add(tx.hash());
+        c.add(hash_transaction(tx));
     }
 
     auto f = c.f;

@@ -54,9 +54,10 @@ ValueType<I> add_to_counter(I f, I l, Op op, ValueType<I> x, ValueType<I> const&
 template <Semiregular T, BinaryOperation Op, std::size_t Size = 64>
 // 	requires Op is associative //TODO
 	requires(Domain<Op> == T) //TODO...
-struct counter_machine {
+class counter_machine {
+public:	
 	counter_machine(Op op, T const& e)
-		: op{op}, e{e}, l{f}
+		: op_{op}, e_{e}, l{f}
 	{}
 
 	counter_machine(counter_machine const&) = delete;
@@ -68,8 +69,8 @@ struct counter_machine {
 
 	void add_to(T x, T* to) {
 		// precondition: TODO
-		x = add_to_counter(to, l, op, x, e);
-		if (x != e) {
+		x = add_to_counter(to, l, op_, x, e_);
+		if (x != e_) {
 			*l = x;
 			++l;
 		}
@@ -80,8 +81,10 @@ struct counter_machine {
         add_to(x, f);
 	}
 
-	const Op op;
-	const T e;
+private;
+	const Op op_;
+	const T e_;
+public:
 	T f[Size];
 	T* l;
 };
