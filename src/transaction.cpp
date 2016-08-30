@@ -139,7 +139,7 @@ hash_digest generate_merkle_root(const transaction_list& transactions)
 
     constexpr hash_digest null_hash_fer {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
 
-    counter_machine_t c {merkle_op{}, null_hash_fer};
+    counter_machine_t c {merkle_op(), null_hash_fer};
 
     for (auto&& tx : transactions) {
         c.add(hash_transaction(tx));
