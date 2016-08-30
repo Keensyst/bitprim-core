@@ -57,7 +57,9 @@ template <Semiregular T, BinaryOperation Op, std::size_t Size = 64>
 class counter_machine {
 public:	
 	counter_machine(Op op, T const& e)
-		: op_{op}, e_{e}, l{f}
+		: op_{op}, 
+		  e_{e}, 
+		  l{f}
 	{}
 
 	counter_machine(counter_machine const&) = delete;
