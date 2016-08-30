@@ -114,6 +114,21 @@ hash_digest hash_transaction(const transaction_type& tx,
 //     return build_merkle_tree(tx_hashes);
 // }
 
+
+inline
+long_hash concat_hash(hash_digest const& a, hash_digest const& b) {
+    long_hash res;
+    std::memcpy(res.data(),            a.data(), a.size() * sizeof(hash_digest::value_type));
+    std::memcpy(res.data() + a.size(), b.data(), b.size() * sizeof(hash_digest::value_type));
+    return res;
+}
+
+struct merkle_op {
+    hash_digest operator()(hash_digest const& a, hash_digest const& b) const {
+        return bitcoin_hash(concat_hash(a, b));
+    }
+};
+
 hash_digest generate_merkle_root(const transaction_list& transactions)
 {
     if (transactions.empty()) return null_hash;
