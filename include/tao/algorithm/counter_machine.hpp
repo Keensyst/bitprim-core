@@ -81,7 +81,7 @@ public:
         add_to(x, f);
 	}
 
-private;
+private:
 	const Op op_;
 	const T e_;
 public:
