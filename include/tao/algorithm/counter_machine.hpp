@@ -89,8 +89,8 @@ private:
 	const T e_;
 	T data[Size];
 public:
-	T* f;
-	T* l;
+	//T* f;
+	//T* l;
 };
 
 }} /*tao::algorithm*/
