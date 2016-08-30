@@ -58,9 +58,8 @@ class counter_machine {
 public:	
 	counter_machine(Op op, T const& e)
 		: op_{op}, 
-		  e_{e}
-		  // f{std::begin(data)},
-		  // l{std::begin(data)}
+		  e_{e},
+		  l{f}
 	{}
 
 	counter_machine(counter_machine const&) = delete;
@@ -70,27 +69,28 @@ public:
     //See http://stackoverflow.com/questions/37092864/should-i-delete-the-move-constructor-and-the-move-assignment-of-a-smart-pointer/38820178#38820178
     // and http://talesofcpp.fusionfenix.com/post-24/episode-eleven-to-kill-a-move-constructor
 
-	// void add_to(T x, T* to) {
-	// 	// precondition: TODO
-	// 	x = add_to_counter(to, l, op_, x, e_);
-	// 	if (x != e_) {
-	// 		*l = x;
-	// 		++l;
-	// 	}
-	// }
+	void add_to(T x, T* to) {
+		// precondition: TODO
+		x = add_to_counter(to, l, op_, x, e_);
+		if (x != e_) {
+			*l = x;
+			++l;
+		}
+	}
 
-	// void add(T x) {
-	// 	// precondition: must not be called more than 2^Size - 1 times
- //        add_to(x, f);
-	// }
+	void add(T x) {
+		// precondition: must not be called more than 2^Size - 1 times
+        add_to(x, f);
+	}
 
 private:
 	const Op op_;
 	const T e_;
-	T data[Size];
+	
 public:
 	//T* f;
-	//T* l;
+	T f[Size];
+	T* l;
 };
 
 }} /*tao::algorithm*/
