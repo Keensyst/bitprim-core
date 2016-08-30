@@ -137,9 +137,7 @@ hash_digest generate_merkle_root(const transaction_list& transactions)
     using counter_machine_t = tao::algorithm::counter_machine<hash_digest, 
                               merkle_op, counter_machine_size>;
 
-    constexpr hash_digest null_hash_fer {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
-
-    counter_machine_t c {merkle_op(), null_hash_fer};
+    counter_machine_t c {merkle_op(), null_hash};
 
     for (auto&& tx : transactions) {
         c.add(hash_transaction(tx));

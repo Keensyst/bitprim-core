@@ -17,23 +17,6 @@
 
 namespace tao { namespace algorithm {
 
-// // Concepts
-// #define Integer typename
-// #define Container typename
-// #define Iterator typename
-// #define ForwardIterator typename
-// #define BinaryOperation typename
-// #define Semiregular typename
-// #define UnaryFunction typename
-
-// #define requires(...) 
-
-//TODO: 
-	// Mutable<I>
-	// Domain<Op>
-
-
-
 template <ForwardIterator I, BinaryOperation Op>
 // 	TODO: requires Op is associative
 	requires(Mutable<I> && ValueType<I> == Domain<Op>) 
@@ -54,12 +37,9 @@ ValueType<I> add_to_counter(I f, I l, Op op, ValueType<I> x, ValueType<I> const&
 template <Semiregular T, BinaryOperation Op, std::size_t Size = 64>
 // 	requires Op is associative //TODO
 	requires(Domain<Op> == T) //TODO...
-class counter_machine {
-public:	
+struct counter_machine {
 	counter_machine(Op op, T const& e)
-		: op_(op), 
-		  e_(e),
-		  l(f)
+		: op(op), e(e), l(f)
 	{}
 
 	counter_machine(counter_machine const&) = delete;
@@ -71,8 +51,8 @@ public:
 
 	void add_to(T x, T* to) {
 		// precondition: TODO
-		x = add_to_counter(to, l, op_, x, e_);
-		if (x != e_) {
+		x = add_to_counter(to, l, op, x, e);
+		if (x != e) {
 			*l = x;
 			++l;
 		}
@@ -83,12 +63,8 @@ public:
         add_to(x, f);
 	}
 
-private:
-	const Op op_;
-	const T e_;
-	
-public:
-	//T* f;
+	const Op op;
+	const T e;
 	T f[Size];
 	T* l;
 };
