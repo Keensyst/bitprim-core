@@ -139,7 +139,7 @@ struct merkle_op_check {
 
 std::pair<hash_digest, bool> generate_merkle_root(const transaction_list& transactions)
 {
-    if (transactions.empty()) return null_hash;
+    if (transactions.empty()) return {null_hash, false};
     
     constexpr size_t counter_machine_size = 20; // It is enough for 1'048'576 Txs
     using counter_machine_t = tao::algorithm::counter_machine_check<hash_digest,
