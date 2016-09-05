@@ -131,7 +131,7 @@ struct merkle_op {
 
 struct merkle_op_check {
     bool any_equal = false;
-    hash_digest operator()(hash_digest const& a, hash_digest const& b) const {
+    hash_digest operator()(hash_digest const& a, hash_digest const& b) {
         any_equal |= (a == b);
         return merkle_op()(a, b);
     }
