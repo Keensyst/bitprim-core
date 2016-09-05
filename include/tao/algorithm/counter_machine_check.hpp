@@ -52,7 +52,7 @@ struct counter_machine_check {
         }
     }
 
-    const Op op;
+    Op op;
     const OpNoCheck op_nocheck;
     const T e;
     T f[Size];
