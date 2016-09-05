@@ -32,7 +32,7 @@
 #include <bitcoin/bitcoin/utility/logger.hpp>
 #include <bitcoin/bitcoin/utility/serializer.hpp>
 
-#include <tao/algorithm/counter_machine.hpp>
+#include <tao/algorithm/counter_machine_check.hpp>
 
 namespace libbitcoin {
 
@@ -129,15 +129,25 @@ struct merkle_op {
     }
 };
 
-hash_digest generate_merkle_root(const transaction_list& transactions)
+struct merkle_op_check {
+    bool any_equal = false;
+    hash_digest operator()(hash_digest const& a, hash_digest const& b) const {
+        any_equal |= (a == b);
+        return merkle_op()(a, b);
+    }
+};
+
+std::pair<hash_digest, bool> generate_merkle_root(const transaction_list& transactions)
 {
     if (transactions.empty()) return null_hash;
     
     constexpr size_t counter_machine_size = 20; // It is enough for 1'048'576 Txs
-    using counter_machine_t = tao::algorithm::counter_machine<hash_digest, 
-                              merkle_op, counter_machine_size>;
+    using counter_machine_t = tao::algorithm::counter_machine_check<hash_digest,
+                            merkle_op_check, merkle_op, counter_machine_size>;
 
-    counter_machine_t c {merkle_op(), null_hash};
+    merkle_op_check op;
+
+    counter_machine_t c (op, merkle_op(), null_hash);
 
     for (auto&& tx : transactions) {
         c.add(hash_transaction(tx));
@@ -150,7 +160,8 @@ hash_digest generate_merkle_root(const transaction_list& transactions)
         }
         ++f;
     }
-    return *(c.l - 1);
+
+    return {*(c.l - 1), op.any_equal};
 }
 
 
