@@ -43,7 +43,7 @@ BC_API hash_digest hash_transaction(const transaction_type& tx);
 BC_API hash_digest hash_transaction(const transaction_type& tx,
     uint32_t hash_type_code);
 
-BC_API hash_digest generate_merkle_root(const transaction_list& transactions);
+BC_API pair<hash_digest, bool> generate_merkle_root(const transaction_list& transactions);
 
 BC_API std::string pretty(const transaction_type& transaction);
 // BC_API transaction_type unpretty(const std::string& pretty);
