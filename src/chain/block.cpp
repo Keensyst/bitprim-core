@@ -402,7 +402,30 @@ hash_digest generate_merkle_root(C const& txs) {
 }
 
 
+template <size_t depth = 20, Container C>
+std::pair<hash_digest, bool> generate_merkle_root_check(C const& txs) {
+    // precondition: ???
+    if (txs.empty()) return std::make_pair(null_hash, false);
 
+    using counter_t = detail::counter_machine_check<hash_digest, detail::merkle_op_check, detail::merkle_op, depth>;
+    //counter_machine<hash_digest, merkle_op, 20> c(merkle_op(), null_hash);
+
+    detail::merkle_op_check op;
+    counter_t c(op, detail::merkle_op(), null_hash);
+
+    for (auto&& tx : txs) {
+        c.add(bitcoin_hash(tx));
+    }
+
+    auto f = c.f;
+    while (f != c.l - 1) {
+        if (*f != null_hash) {
+            c.add_to(*f, f);
+        }
+        ++f;
+    }
+    return std::make_pair(*(c.l - 1), op.any_equal);
+}
 
 #undef Integer
 #undef Container
