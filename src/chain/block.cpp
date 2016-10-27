@@ -173,63 +173,249 @@ uint64_t block::serialized_size(bool with_transaction_count) const
     return block_size;
 }
 
-hash_digest build_merkle_tree(hash_list& merkle)
-{
-    // Stop if hash list is empty.
-    if (merkle.empty())
-        return null_hash;
+// Old naive merkle root implementation
+// hash_digest build_merkle_tree(hash_list& merkle)
+// {
+//     // Stop if hash list is empty.
+//     if (merkle.empty())
+//         return null_hash;
 
-    // While there is more than 1 hash in the list, keep looping...
-    while (merkle.size() > 1)
-    {
-        // If number of hashes is odd, duplicate last hash in the list.
-        if (merkle.size() % 2 != 0)
-            merkle.push_back(merkle.back());
+//     // While there is more than 1 hash in the list, keep looping...
+//     while (merkle.size() > 1)
+//     {
+//         // If number of hashes is odd, duplicate last hash in the list.
+//         if (merkle.size() % 2 != 0)
+//             merkle.push_back(merkle.back());
 
-        // List size is now even.
-        BITCOIN_ASSERT(merkle.size() % 2 == 0);
+//         // List size is now even.
+//         BITCOIN_ASSERT(merkle.size() % 2 == 0);
 
-        // New hash list.
-        hash_list new_merkle;
+//         // New hash list.
+//         hash_list new_merkle;
 
-        // Loop through hashes 2 at a time.
-        for (auto it = merkle.begin(); it != merkle.end(); it += 2)
-        {
-            // Join both current hashes together (concatenate).
-            data_chunk concat_data;
-            data_sink concat_stream(concat_data);
-            ostream_writer concat_sink(concat_stream);
-            concat_sink.write_hash(*it);
-            concat_sink.write_hash(*(it + 1));
-            concat_stream.flush();
+//         // Loop through hashes 2 at a time.
+//         for (auto it = merkle.begin(); it != merkle.end(); it += 2)
+//         {
+//             // Join both current hashes together (concatenate).
+//             data_chunk concat_data;
+//             data_sink concat_stream(concat_data);
+//             ostream_writer concat_sink(concat_stream);
+//             concat_sink.write_hash(*it);
+//             concat_sink.write_hash(*(it + 1));
+//             concat_stream.flush();
 
-            BITCOIN_ASSERT(concat_data.size() == (2 * hash_size));
+//             BITCOIN_ASSERT(concat_data.size() == (2 * hash_size));
 
-            // Hash both of the hashes.
-            const auto new_root = bitcoin_hash(concat_data);
+//             // Hash both of the hashes.
+//             const auto new_root = bitcoin_hash(concat_data);
 
-            // Add this to the new list.
-            new_merkle.push_back(new_root);
+//             // Add this to the new list.
+//             new_merkle.push_back(new_root);
+//         }
+
+//         // This is the new list.
+//         merkle = new_merkle;
+//     }
+
+//     // Finally we end up with a single item.
+//     return merkle[0];
+// }
+
+// Old naive merkle root implementation
+// hash_digest block::generate_merkle_root(const transaction::list& transactions)
+// {
+//     // Generate list of transaction hashes.
+//     hash_list tx_hashes;
+//     for (const auto& tx: transactions)
+//         tx_hashes.push_back(tx.hash());
+
+//     // Build merkle tree.
+//     return build_merkle_tree(tx_hashes);
+// }
+
+//Concepts
+#define Integer typename
+#define Container typename
+#define Iterator typename
+#define ForwardIterator typename
+#define BinaryOperation typename
+#define Semiregular typename
+#define UnaryFunction typename
+#define RandomEngine typename
+#define Sequence typename
+#define AssocContainer typename
+#define requires(...)
+
+// Type Attributes / Type Functions
+template <Iterator I>
+using ValueType = typename std::iterator_traits<I>::value_type;
+
+
+namespace algorithm {
+
+template <ForwardIterator I, BinaryOperation Op>
+//  TODO: requires Op is associative
+    requires(Mutable<I> && ValueType<I> == Domain<Op>) 
+ValueType<I> add_to_counter(I f, I l, Op op, ValueType<I> x, ValueType<I> const& e) {
+    // precondition: x != e
+    while (f != l) {
+        if (*f == e) {
+            *f = x;
+            return e;
         }
+        x = op(*f, x);
+        *f = e;
+        ++f;
+    }
+    return x;
+}
 
-        // This is the new list.
-        merkle = new_merkle;
+template <Semiregular T, BinaryOperation Op, std::size_t Size = 64>
+//  requires Op is associative
+    requires(Domain<Op> == T) //TODO...
+struct counter_machine {
+    // counter_machine(Op const& op, T const& e)
+    counter_machine(Op op, T const& e)
+        : op(op), e(e), l(f)
+    {}
+
+    counter_machine(counter_machine const&) = delete;
+    counter_machine& operator=(counter_machine const&) = delete;
+
+    //Move Constructor and Move Assignment Operator are deleted too
+    //See http://stackoverflow.com/questions/37092864/should-i-delete-the-move-constructor-and-the-move-assignment-of-a-smart-pointer/38820178#38820178
+    // and http://talesofcpp.fusionfenix.com/post-24/episode-eleven-to-kill-a-move-constructor
+
+    void add_to(T x, T* to) {
+        // precondition: TODO
+        x = add_to_counter(to, l, op, x, e);
+        if (x != e) {
+            *l = x;
+            ++l;
+        }
     }
 
-    // Finally we end up with a single item.
-    return merkle[0];
+    // void add(T const& x) {
+    void add(T x) {
+        // precondition: must not be called more than 2^Size - 1 times
+        add_to(x, f);
+    }
+
+    const Op op;
+    const T e;
+    T f[Size];
+    T* l;
+};
+
+template <Semiregular T, BinaryOperation Op, BinaryOperation OpNoCheck, std::size_t Size = 64>
+//  requires Op is associative //TODO
+//  requires OpNoCheck is associative //TODO
+    requires(Domain<Op> == T && Domain<Op> == Domain<OpNoCheck>) //TODO...
+struct counter_machine_check {
+    counter_machine_check(Op op, OpNoCheck op_nocheck, T const& e)
+        : op(op), op_nocheck(op_nocheck), e(e), l(f)
+    {}
+
+    counter_machine_check(counter_machine_check const&) = delete;
+    counter_machine_check& operator=(counter_machine_check const&) = delete;
+    
+    //Move Constructor and Move Assignment Operator are deleted too
+    // See http://stackoverflow.com/questions/37092864/should-i-delete-the-move-constructor-and-the-move-assignment-of-a-smart-pointer/38820178#38820178
+    // and http://talesofcpp.fusionfenix.com/post-24/episode-eleven-to-kill-a-move-constructor
+
+    void add_to(T x, T* to) {
+        // precondition: TODO
+        x = add_to_counter(to, l, op_nocheck, x, e);
+        if (x != e) {
+            *l = x;
+            ++l;
+        }
+    }
+
+    void add(T x) {
+        // precondition: must not be called more than 2^Size - 1 times
+        add_to(x, f);
+    }
+
+    const Op op;
+    const OpNoCheck op_nocheck;
+    const T e;
+    T f[Size];
+    T* l;
+};
+
+} /*namespace algorithm*/
+
+
+namespace detail {
+
+template <Container C1, Container C2>
+inline
+hash_digest bitcoin_hash_dual_buffer(C1 const& a, C2 const& b) {
+    //precondition: size(a) == 32 && size(b) == 32
+
+    hash_digest hash;
+    SHA256OptDoubleDualBuffer_(
+        reinterpret_cast<uint8_t const*>(a.data()),
+        reinterpret_cast<uint8_t const*>(b.data()), 
+        hash.data());
+    return hash;
 }
 
-hash_digest block::generate_merkle_root(const transaction::list& transactions)
-{
-    // Generate list of transaction hashes.
-    hash_list tx_hashes;
-    for (const auto& tx: transactions)
-        tx_hashes.push_back(tx.hash());
+struct merkle_op {
+    hash_digest operator()(hash_digest const& a, hash_digest const& b) const {
+        // return bitcoin_hash(concat_hash(a, b));
+        return bitcoin_hash_dual_buffer(a, b);
+    }
+};
 
-    // Build merkle tree.
-    return build_merkle_tree(tx_hashes);
+struct merkle_op_check {
+    bool any_equal = false;
+    hash_digest operator()(hash_digest const& a, hash_digest const& b) {
+        any_equal |= (a == b);
+        return merkle_op()(a, b);
+    }
+};
+
+} /*namespace detail*/
+
+template <size_t depth = 20, Container C>
+hash_digest generate_merkle_root(C const& txs) {
+    // precondition: ???
+    if (txs.empty()) return null_hash;
+
+    using counter_t = detail::counter_machine<hash_digest, detail::merkle_op, depth>;
+    counter_t c(detail::merkle_op(), null_hash);
+
+    for (auto&& tx : txs) {
+        c.add(bitcoin_hash(tx));
+    }
+
+    auto f = c.f;
+    while (f != c.l - 1) {
+        if (*f != null_hash) {
+            c.add_to(*f, f);
+        }
+        ++f;
+    }
+    return *(c.l - 1);
 }
+
+
+
+
+#undef Integer
+#undef Container
+#undef Iterator
+#undef ForwardIterator
+#undef BinaryOperation
+#undef Semiregular
+#undef UnaryFunction
+#undef RandomEngine
+#undef Sequence
+#undef AssocContainer
+#undef requires
+
 
 static const std::string encoded_mainnet_genesis_block =
     "01000000"
