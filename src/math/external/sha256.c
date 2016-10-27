@@ -268,3 +268,45 @@ void SHA256Update(SHA256CTX* context, const uint8_t* input, size_t length)
 
     memcpy(context->buf, input, length);
 }
+
+// ----------------------------------------------------------------
+
+void SHA256OptDoubleDualBuffer_(uint8_t const* input1, uint8_t const* input2, uint8_t digest[SHA256_DIGEST_LENGTH]) {
+    //precondition: length of input1 == 32 && length of input2 == 32
+
+    uint8_t PADXX[] = {
+        0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02, 0};
+
+    SHA256CTX context;
+    SHA256Init(&context);
+
+    memcpy(&context->buf[0], input1, 32);
+    memcpy(&context->buf[32], input2, 32);
+    SHA256Transform(context.state, context->buf);
+
+    SHA256Transform(context.state, PADXX);
+
+    be32enc_vect(digest, context.state, SHA256_DIGEST_LENGTH);
+    zeroize((void*)&context, sizeof(context));
+    SHA256Init(&context);
+
+    SHA256UpdateOptDouble(&context, digest);
+
+    be32enc_vect(digest, context.state, SHA256_DIGEST_LENGTH);
+    zeroize((void*)&context, sizeof(context));
+}
+
+void SHA256UpdateOptDouble(SHA256CTX* context, const uint8_t* input) {
+    //precondition: length of input == 32
+
+    uint8_t PADXX[] = {
+            0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
+
+    memcpy(&context->buf[0], input, 32);
+    memcpy(&context->buf[32], data, 32);
+    SHA256Transform(context->state, context->buf);
+}

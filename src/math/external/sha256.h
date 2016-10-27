@@ -1,6 +1,7 @@
 /* libsodium: crypto_hash_sha256.h, v0.4.5 2014/04/16 */
 /**
  * Copyright 2005,2007,2009 Colin Percival. All rights reserved.
+ * Copyright 2016 Fernando Pelliccioni. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -59,6 +60,11 @@ void SHA256Transform(uint32_t state[SHA256_STATE_LENGTH],
     const uint8_t block[SHA256_BLOCK_LENGTH]);
 
 void SHA256Update(SHA256CTX* context, const uint8_t* input, size_t length);
+
+
+void SHA256OptDoubleDualBuffer_(uint8_t const* input1, uint8_t const* input2, uint8_t digest[SHA256_DIGEST_LENGTH]);
+void SHA256UpdateOptDouble(SHA256CTX* context, const uint8_t* input);
+
 
 #ifdef __cplusplus
 }
