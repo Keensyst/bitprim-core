@@ -1,0 +1,1348 @@
+diff -urN a/Configure b/Configure
+--- a/Configure	2012-03-03 15:18:06.000000000 +0200
++++ b/Configure	2012-03-29 20:43:53.000001000 +0200
+@@ -1623,7 +1623,7 @@
+ 		s/^RANLIB=.*/RANLIB= $ranlib/;
+ 		s/^MAKEDEPPROG=.*$/MAKEDEPPROG= $cc/ if $cc eq "gcc";
+ 		}
+-	s/^CFLAG=.*$/CFLAG= $cflags/;
++	s/^CFLAG=.*$/CFLAG= \$\(SMSCFLAG\) $cflags/;
+ 	s/^DEPFLAG=.*$/DEPFLAG=$depflags/;
+ 	s/^PEX_LIBS=.*$/PEX_LIBS= $prelflags/;
+ 	s/^EX_LIBS=.*$/EX_LIBS= $lflags/;
+diff -urN a/Makefile.org b/Makefile.org
+--- a/Makefile.org	2012-02-12 20:47:36.000000000 +0200
++++ b/Makefile.org	2012-03-29 20:43:48.000001000 +0200
+@@ -58,7 +58,8 @@
+ # PKCS1_CHECK - pkcs1 tests.
+ 
+ CC= cc
+-CFLAG= -O
++SMSCFLAG = -DSHA_SMS_AVX1
++CFLAG=  -O
+ DEPFLAG= 
+ PEX_LIBS= 
+ EX_LIBS= 
+diff -urN a/crypto/sha/Makefile b/crypto/sha/Makefile
+--- a/crypto/sha/Makefile	2011-11-14 22:42:22.000000000 +0200
++++ b/crypto/sha/Makefile	2012-03-29 20:58:34.000091000 +0200
+@@ -23,7 +23,7 @@
+ 
+ LIB=$(TOP)/libcrypto.a
+ LIBSRC=sha_dgst.c sha1dgst.c sha_one.c sha1_one.c sha256.c sha512.c
+-LIBOBJ=sha_dgst.o sha1dgst.o sha_one.o sha1_one.o sha256.o sha512.o $(SHA1_ASM_OBJ)
++LIBOBJ=sha_dgst.o sha1dgst.o sha_one.o sha1_one.o sha256.o sha512.o sha256_SMS_AVX.o sha512_SMS_AVX.o sha256_SMS_AVX2.o sha512_SMS_AVX2.o $(SHA1_ASM_OBJ)
+ 
+ SRC= $(LIBSRC)
+ 
+@@ -66,6 +66,14 @@
+ sha1-x86_64.s:	asm/sha1-x86_64.pl;	$(PERL) asm/sha1-x86_64.pl $(PERLASM_SCHEME) > $@
+ sha256-x86_64.s:asm/sha512-x86_64.pl;	$(PERL) asm/sha512-x86_64.pl $(PERLASM_SCHEME) $@
+ sha512-x86_64.s:asm/sha512-x86_64.pl;	$(PERL) asm/sha512-x86_64.pl $(PERLASM_SCHEME) $@
++
++sha256_SMS_AVX.s:asm/sha2_SMS-x86_64.pl;	$(PERL) asm/sha2_SMS-x86_64.pl $(PERLASM_SCHEME) $@
++sha512_SMS_AVX.s:asm/sha2_SMS-x86_64.pl;	$(PERL) asm/sha2_SMS-x86_64.pl $(PERLASM_SCHEME) $@
++sha256_SMS_AVX2:asm/sha2_SMS-x86_64.pl;	$(PERL) asm/sha2_SMS-x86_64.pl $(PERLASM_SCHEME) $@
++sha512_SMS_AVX2:asm/sha2_SMS-x86_64.pl;	$(PERL) asm/sha2_SMS-x86_64.pl $(PERLASM_SCHEME) $@
++sha256_SMS_AVX2.s:sha256_SMS_AVX2; sed 's/.*vpgather/\tvpgather/g' sha256_SMS_AVX2 | sed 's/rorx[ql]/rorx/g' > $@; rm sha256_SMS_AVX2
++sha512_SMS_AVX2.s:sha512_SMS_AVX2; sed 's/.*vpgather/\tvpgather/g' sha512_SMS_AVX2 | sed 's/rorx[ql]/rorx/g' > $@; rm sha512_SMS_AVX2
++
+ sha1-sparcv9.s:	asm/sha1-sparcv9.pl;	$(PERL) asm/sha1-sparcv9.pl $@ $(CFLAGS)
+ sha256-sparcv9.s:asm/sha512-sparcv9.pl;	$(PERL) asm/sha512-sparcv9.pl $@ $(CFLAGS)
+ sha512-sparcv9.s:asm/sha512-sparcv9.pl;	$(PERL) asm/sha512-sparcv9.pl $@ $(CFLAGS)
+@@ -128,6 +136,10 @@
+ 
+ # DO NOT DELETE THIS LINE -- make depend depends on it.
+ 
++sha256_SMS_AVX.o:sha256_SMS_AVX.s; yasm -pgas -rraw -f elf64 $< -o $@
++sha512_SMS_AVX.o:sha512_SMS_AVX.s; yasm -pgas -rraw -f elf64 $< -o $@
++sha256_SMS_AVX2.o:sha256_SMS_AVX2.s; yasm -pgas -rraw -f elf64 $< -o $@
++sha512_SMS_AVX2.o:sha512_SMS_AVX2.s; yasm -pgas -rraw -f elf64 $< -o $@
+ sha1_one.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+ sha1_one.o: ../../include/openssl/opensslconf.h
+ sha1_one.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+diff -urN a/crypto/sha/asm/sha2_SMS-x86_64.pl b/crypto/sha/asm/sha2_SMS-x86_64.pl
+--- a/crypto/sha/asm/sha2_SMS-x86_64.pl	1970-01-01 02:00:00.000000000 +0200
++++ b/crypto/sha/asm/sha2_SMS-x86_64.pl	2012-03-30 09:39:11.001699000 +0300
+@@ -0,0 +1,1228 @@
++#!/usr/bin/env perl
++#
++#******************************************************************************
++# Copyright(c) 2012, Intel Corp.                                             
++# Developers and authors:                                                    
++# Shay Gueron (1, 2), and Vlad Krasnov (1)                                   
++# (1) Intel Corporation, Israel Development Center, Haifa, Israel                               
++# (2) University of Haifa, Israel                                              
++#******************************************************************************
++# LICENSE:                                                                
++# This submission to OpenSSL is to be made available under the OpenSSL  
++# license, and only to the OpenSSL project, in order to allow integration    
++# into the publicly distributed code. 
++# The use of this code, or portions of this code, or concepts embedded in
++# this code, or modification of this code and/or algorithm(s) in it, or the
++# use of this code for any other purpose than stated above, requires special
++# licensing.                                                                  
++#******************************************************************************
++# DISCLAIMER:                                                                
++# THIS SOFTWARE IS PROVIDED BY THE CONTRIBUTORS AND THE COPYRIGHT OWNERS     
++# ``AS IS''. ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED 
++# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR 
++# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS OR THE COPYRIGHT
++# OWNERS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, 
++# OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF    
++# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS   
++# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN    
++# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)    
++# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
++# POSSIBILITY OF SUCH DAMAGE.                                                          
++#******************************************************************************
++#  This patch offers an efficient implementations of SHA256 and SHA512 
++# using the Simultaneous Message Scheduling (SMS) method, which is based on 
++# parallelizing several message schedules, as described in [1].
++#
++# [1] S. Gueron, V. Krasnov: "Parallelizing message schedules to accelerate the
++# computations of hash functions", http://eprint.iacr.org/2012/067.pdf                
++#
++#
++# Two implementations are provided here:  
++#    
++#     One implementation is tailored for the Second Generation Intel(R) Core(TM) 
++#     processors. It uses the AVX instruction set. 
++#
++#     The second implementation uses the soon-to-come AVX2 instruction set,
++#     and it is intended to run on the future Intel(R)architecture 
++#     Codename ?Haswell?. 
++#
++# The AVX1 implementation:
++# ========================
++#
++# The speedup (measured on Intel(R) Core(TM) i7-2600K CPU @ 3.40GHz)
++# ==================================================================
++#
++# The speedup offered by this patch (compared to OpenSSL 1.0.1) is:
++#
++#     Up to 1.45X for SHA256 
++#     Up to 1.30X for SHA512 
++#
++# For example: 
++#
++#     For a 1024 bytes message, the SHA256 performance is 13.15 Cycles/Byte
++#     For a 1024 bytes message, the SHA512 performance is 10.00 Cycles/Byte
++#
++#     For a 8192 bytes message, the SHA256 performance is 12.14 Cycles/Byte
++#     For a 8192 bytes message, the SHA512 performance is  8.76 Cycles/Byte
++#
++#
++# Comments: 
++# =========
++#
++# This specific implementation is tailored for the Second Generation Intel(R) 
++# Core(TM) processors. It uses the AVX instruction set. 
++#
++# Due to the nature of the algorithm, the method offers speedup 
++# for buffers whose length is at least 256 bytes.
++#
++# The underlying algorithm parallelizes the message schedule step of the 
++# "Update" function. Some portions of this code (for the other steps of the 
++# Update) are derived from sha512-x86_64.pl, OpenSSL version 1.0.1 (which is due
++# to Andy Polyakov). The Update code remains unchanged, with the exception that 
++# the ROR instructions were replaced with equivalent SHRD instruction.
++# This replacement achieves better performance on 2nd Generation Core(TM) 
++# Processors.
++# This change was also applied to the function in sha512-x86_64.pl.
++# 
++# Note: On some architectures, the SHRD instruction may be slower than ROR, and 
++# in that case, replacing (back) all the occurrences of SHRD by the ROR 
++# instruction is recommended. 
++#
++# Performance numbers, measured on Intel(R) Core(TM) i7-2600K CPU @ 3.40GHz, 
++# using ?openssl speed? utility.
++# =========================================================================
++#
++# OpenSSL speed results:
++# Speedup compared to OpenSSL 1.0.1 implementation, using openssl speed
++# on Intel(R) Core(TM) i7-2600K CPU @ 3.40GHz Codename ?Sandy bridge?:
++#
++# This patch:
++# ===========
++# The 'numbers' are in 1000s of bytes per second processed.
++# type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
++# sha256           49287.89k   106611.93k   207183.20k   258248.35k   280210.24k
++#
++# The 'numbers' are in 1000s of bytes per second processed.
++# type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
++# sha512           38169.64k   153921.26k   239591.17k   339988.89k   388002.16k
++#
++# OpenSSL 1.0.1:
++# ==============
++# The 'numbers' are in 1000s of bytes per second processed.
++# type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
++# sha256           42250.14k    89681.26k   151176.99k   181988.77k   193555.86k
++#
++# The 'numbers' are in 1000s of bytes per second processed.
++# type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
++# sha512           32248.82k   130146.12k   190781.30k   264954.35k   298040.85k
++#
++#
++# The AVX2 implementation:
++# ========================
++#
++# To compile for the AVX2 version: pass the argument SMSCFLAG=-DSHA_SMS_AVX2 
++# to the make instruction as follows: make SMSCFLAG=-DSHA_SMS_AVX2
++# (the default compilation uses AVX1)
++#
++# The description of the new instructions can be found at: 
++#
++# http://software.intel.com/en-us/blogs/2011/06/13/haswell-new-instruction-descriptions-now-available/
++# 
++# At the time this patch is published, ?Haswell? processors are not yet
++# commercially available. However, the correctness of the code can be checked using 
++# the Intel SDE tool: 
++# http://software.intel.com/en-us/articles/intel-software-development-emulator/
++#
++# Comments: 
++# =========
++#
++# To compile the code, yasm version 1.2.0 is required http://yasm.tortall.net/.
++# This is only a temporary solution, until a gcc version with support for the AVX2 
++# instruction set is released.
++#
++# The current version of perlasm (in OpenSSL version 1.0.1) generates some syntax 
++# errors in some AVX2 instructions (one example is the AVX2 instruction VPGATHERDD).
++# In this patch, we fixed the incorrect syntax by a SED script that is embedded in 
++# the MAKEFILE MAKEFILE (this is a temporary solution, until a perlasm version 
++# that handles these instructions is released).
++#
++#
++# The performance of the AVX2 implementation:
++# ===========================================
++#
++# The performance of the AVX2 implementation cannot be measured directly, until 
++# the Haswell processors are available. However, we can approximate the 
++# performance gain by counting the number of instructions required per 
++# compression of a 512 bytes. 
++# Those numbers were obtained using the Intel SDE tool:
++# http://software.intel.com/en-us/articles/intel-software-development-emulator/
++# Using the -mix flag
++#
++# These are the numbers (number of instructions per compression of 512 bytes):
++#
++#         OpenSSL 1.0.1     AVX1          AVX2             
++# SHA256     23,298        18,447        15,571
++# SHA512     14,810        13,335        10,693
++#
++#
++# Developers and authors:
++# ************************************************************************
++# Shay Gueron (1, 2), and Vlad Krasnov (1)
++#
++# (1) Intel Corporation, Israel Development Center, Haifa, Israel
++# (2) University of Haifa, Israel
++# ************************************************************************
++# 
++################################################################################
++
++
++$flavour = shift;
++$output  = shift;
++if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
++
++$win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
++
++$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
++( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
++( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
++die "can't locate x86_64-xlate.pl";
++
++open STDOUT,"| $^X $xlate $flavour $output";
++
++if ($output =~ /AVX2/) {
++
++    $SIMDR = "ymm";
++
++    if ($output =~ /512/) {
++        $func="sha512_4SMS";
++        $tail="sha512_2SMS";
++        $TABLE="K512AVX2";
++        $SZ=8;
++        @ROT=($A,$B,$C,$D,$E,$F,$G,$H)=("%rax","%rbx","%rcx","%rdx",
++                        "%r8", "%r9", "%r10","%r11");
++        ($T1,$a0,$a1,$a2)=("%r12","%r13","%r14","%r15");
++        @Sigma0=(28,34,39);
++        @Sigma1=(14,18,41);
++        @sigma0=(1,  8, 7);
++        @sigma1=(19,61, 6);
++        $rounds=80;
++        $bswap = "bswapMask512_2";
++        $gath = "gatherMask512";
++        $shedSize = $rounds*$SZ*2;
++        $elems=4;
++          
++    } else {
++        $func="sha256_8SMS";
++        $tail="sha256_4SMS";
++        $TABLE="K256AVX2";
++        $SZ=4;
++        @ROT=($A,$B,$C,$D,$E,$F,$G,$H)=("%eax","%ebx","%ecx","%edx",
++                        "%r8d","%r9d","%r10d","%r11d");
++        ($T1,$a0,$a1,$a2)=("%r12d","%r13d","%r14d","%r15d");
++        @Sigma0=( 2,13,22);
++        @Sigma1=( 6,11,25);
++        @sigma0=( 7,18, 3);
++        @sigma1=(17,19,10);
++        $rounds=64;
++        $bswap = "bswapMask256_2";
++        $gath = "gatherMask256";
++        $elems=8;
++    }
++
++} else {
++    
++    $SIMDR = "xmm";
++
++    if ($output =~ /512/) {
++        $func="sha512_2SMS";
++        $tail="sha512_block_data_order";
++        $TABLE="K512SMS";
++        $SZ=8;
++        @ROT=($A,$B,$C,$D,$E,$F,$G,$H)=("%rax","%rbx","%rcx","%rdx",
++                        "%r8", "%r9", "%r10","%r11");
++        ($T1,$a0,$a1,$a2)=("%r12","%r13","%r14","%r15");
++        @Sigma0=(28,34,39);
++        @Sigma1=(14,18,41);
++        @sigma0=(1,  8, 7);
++        @sigma1=(19,61, 6);
++        $rounds=80;
++        $bswap = "bswapMask512";
++        $elems=2;
++          
++    } else {
++        $func="sha256_4SMS";
++        $tail="sha256_block_data_order";
++        $TABLE="K256SMS";
++        $SZ=4;
++        @ROT=($A,$B,$C,$D,$E,$F,$G,$H)=("%eax","%ebx","%ecx","%edx",
++                        "%r8d","%r9d","%r10d","%r11d");
++        ($T1,$a0,$a1,$a2)=("%r12d","%r13d","%r14d","%r15d");
++        @Sigma0=( 2,13,22);
++        @Sigma1=( 6,11,25);
++        @sigma0=( 7,18, 3);
++        @sigma1=(17,19,10);
++        $rounds=64;
++        $bswap = "bswapMask256";
++        $elems=4;
++    }
++}
++
++
++$shedSize = $rounds*$SZ*$elems;
++
++$ctx="%rdi";	# 1st arg
++$round="%rdi";	# zaps $ctx
++$inp="%rsi";	# 2nd arg
++$Tbl="%rbp";
++
++$_ctx="`0*8`(%rsp)";
++$_inp="`1*8`(%rsp)";
++$_end="`2*8`(%rsp)";
++$_rsp="`3*8`(%rsp)";
++$_tmp1="`4*8+1*$elems*$SZ`(%rsp)";
++$_tmp2="`4*8+2*$elems*$SZ`(%rsp)";
++$_tmp3="`4*8+3*$elems*$SZ`(%rsp)";
++$_tmp4="`4*8+4*$elems*$SZ`(%rsp)";
++$_tmp5="`4*8+5*$elems*$SZ`(%rsp)";
++$framesz="(4*8)+(5*$SZ*$elems)+($shedSize)+64";
++
++sub psrl()
++{ my ($IMM, $SRC2, $DST) = @_;
++if ($output =~ /512/) 
++{ 
++$code.=<<___;
++    vpsrlq \$$IMM, $SRC2, $DST
++___
++} else { 
++$code.=<<___;
++    vpsrld \$$IMM, $SRC2, $DST
++___
++}
++};
++
++sub psll()
++{ my ($IMM, $SRC2, $DST) = @_;
++if ($output =~ /512/) 
++{ 
++$code.=<<___;
++    vpsllq \$$IMM, $SRC2, $DST
++___
++} else { 
++$code.=<<___;
++    vpslld \$$IMM, $SRC2, $DST
++___
++}
++};
++
++sub pxor()
++{ my ($SRC1, $SRC2, $DST) = @_;
++if ($output =~ /512/) 
++{ 
++$code.=<<___;
++    vpxor $SRC1, $SRC2, $DST
++___
++} else { 
++$code.=<<___;
++    vpxor $SRC1, $SRC2, $DST
++___
++}
++};
++
++sub padd()
++{ my ($SRC1, $SRC2, $DST) = @_;
++if ($output =~ /512/) 
++{ 
++$code.=<<___;
++    vpaddq $SRC1, $SRC2, $DST
++___
++} else { 
++$code.=<<___;
++    vpaddd $SRC1, $SRC2, $DST
++___
++}
++};
++
++
++sub pbroadcast()
++{ my ($SRC, $DST) = @_;
++if ($output =~ /512/) 
++{ 
++$code.=<<___;
++    vpbroadcastq $SRC, $DST
++___
++} else { 
++$code.=<<___;
++    vpbroadcastd $SRC, $DST
++___
++}
++};
++
++sub pgather()
++{ my ($MASK, $SRC, $DST) = @_;
++if ($output =~ /512/) 
++{ 
++$code.=<<___;
++    vpgatherqq $MASK, $SRC, $DST
++___
++} else { 
++$code.=<<___;
++    vpgatherdd $MASK, $SRC, $DST
++___
++}
++};
++
++sub pmov()
++{ my ($SRC, $DST) = @_;
++if ($output =~ /512/) 
++{ 
++$code.=<<___;
++    vmovdqa $SRC, $DST
++___
++} else { 
++$code.=<<___;
++    vmovdqa $SRC, $DST
++___
++}
++};
++
++
++sub StoreTmp()
++{ my ($t1, $t2, $t3, $t4, $t5) = @_;
++$code.=<<___;
++
++    vmovdqa $t1, $_tmp1
++    vmovdqa $t2, $_tmp2
++    vmovdqa $t3, $_tmp3
++    vmovdqa $t4, $_tmp4
++    vmovdqa $t5, $_tmp5
++    
++___
++}
++
++
++sub RestoreTmp()
++{ my ($t1, $t2, $t3, $t4, $t5) = @_;
++$code.=<<___;
++
++    vmovdqa $_tmp1, $t1
++    vmovdqa $_tmp2, $t2
++    vmovdqa $_tmp3, $t3
++    vmovdqa $_tmp4, $t4
++    vmovdqa $_tmp5, $t5
++    
++___
++}
++
++sub Gather()
++{
++
++if ($output =~ /AVX2/) {
++
++      &pmov("$gath(%rip)", "%`$SIMDR`15");
++      
++      for($i=0;$i<15;$i++) {
++        $code.="    vpcmpeqd %$SIMDR$i, %$SIMDR$i, %$SIMDR$i\n";
++      }
++      
++      for($i=0;$i<14;$i++)
++      {
++        $addr = "`$SZ*$i`(%rsi, %`$SIMDR`15, $SZ) ";
++        $code.=$addr;
++        &pgather("%$SIMDR`$i+1`", "$addr", "%$SIMDR$i");
++      }
++      
++      for($i=0; $i<14;$i++){
++        $code.="    vpshufb $bswap(%rip), %$SIMDR$i, %$SIMDR$i\n";
++      }
++
++      &pmov("%`$SIMDR`0", $_tmp1);
++      &pmov("%`$SIMDR`1", $_tmp2);
++      &pmov("%`$SIMDR`15", "%`$SIMDR`0");
++   
++      for($i=14;$i<16;$i++)
++      {
++        $addr = "`$SZ*$i`(%rsi, %`$SIMDR`0, $SZ) ";
++        $code.="    vpcmpeqd %`$SIMDR`1, %`$SIMDR`1, %`$SIMDR`1\n";
++        $code.=$addr;
++        &pgather("%`$SIMDR`1", "$addr", "%$SIMDR$i");
++        $code.="    vpshufb $bswap(%rip), %$SIMDR$i, %$SIMDR$i\n";
++      }
++      
++      
++      &pmov($_tmp1, "%`$SIMDR`0");
++      &pmov($_tmp2, "%`$SIMDR`1");
++      
++} else {
++    if ($output =~ /512/) {
++
++            for($i=0;$i<16;$i++) {
++                $code.="	vmovq `8*$i`($inp), %$SIMDR$i\n";
++            }
++            for($i=0; $i<16;$i++){
++                $code.="	vpinsrq \$1, `8*$i+128`($inp), %$SIMDR$i, %$SIMDR$i\n";
++            }
++        
++    } else {
++
++            for($i=0;$i<16;$i++) {
++                $code.="	vmovd `4*$i`($inp), %$SIMDR$i\n";
++            }
++            for($i=0; $i<16;$i++){
++                $code.="	vpinsrd \$1, `4*$i+64`($inp), %$SIMDR$i, %$SIMDR$i\n";
++            }
++            for($i=0; $i<16;$i++){
++                $code.="	vpinsrd \$2, `4*$i+128`($inp), %$SIMDR$i, %$SIMDR$i\n";
++            }
++            for($i=0; $i<16;$i++){
++                $code.="	vpinsrd \$3, `4*$i+192`($inp), %$SIMDR$i, %$SIMDR$i\n";
++            }
++
++        }
++    
++    for($i=0; $i<16;$i++){
++        $code.="	vpshufb $bswap(%rip), %$SIMDR$i, %$SIMDR$i\n";
++    }
++    }
++}
++
++sub ROUND()
++{ my ($a,$b,$c,$d,$e,$f,$g,$h) = @_;
++
++if ($output =~ /AVX2/) {
++$code.=<<___;   
++   rorx \$$Sigma1[2], $e, $a0
++   rorx \$$Sigma1[1], $e, $a1
++   rorx \$$Sigma1[0], $e, $a2
++   add ($inp), $h
++   add \$`$SZ*$elems`, $inp
++   xor $a1, $a0
++   xor $a2, $a0
++   rorx \$$Sigma0[2], $a, $a1
++   rorx \$$Sigma0[1], $a, $a2
++   rorx \$$Sigma0[0], $a, $T1
++   xor $a2, $a1
++   xor $T1, $a1
++   mov $f, $a2
++   xor $g, $a2
++   and $e, $a2
++   xor $g, $a2
++   lea ($h, $a2), $h
++   mov $b, $T1
++   xor $c, $T1
++   and $a, $T1
++   mov $b, $a2
++   and $c, $a2
++   lea ($h, $a0), $h
++   add $a2, $T1
++   add $h, $d
++   lea ($h, $T1), $h
++   lea ($h, $a1), $h
++___
++} else{
++$code.=<<___;
++
++    mov $e, $a0
++    mov $a, $a1
++    shrd \$`$Sigma1[2]-$Sigma1[1]`,$a0,$a0
++    mov $f, $a2
++    shrd \$`$Sigma0[2]-$Sigma0[1]`,$a1,$a1
++    xor $e, $a0
++    xor $g, $a2
++    shrd \$`$Sigma1[1]-$Sigma1[0]`,$a0,$a0
++	mov	($inp),$T1
++    add \$`$SZ*$elems`, $inp
++    add $h, $T1
++    xor $a, $a1
++    and $e, $a2
++    mov $b, $h
++    shrd \$`$Sigma0[1]-$Sigma0[0]`,$a1,$a1
++    xor $e, $a0
++    xor $g, $a2
++    xor $c, $h
++    xor $a, $a1
++    add $a2, $T1
++    mov $b, $a2
++    shrd \$$Sigma1[0], $a0, $a0
++    and $a, $h
++    and $c, $a2
++    shrd \$$Sigma0[0], $a1, $a1
++    add $a0, $T1
++    add $a2, $h
++    add $T1, $d
++    add $a1, $h
++    add $T1, $h
++___
++}
++}
++
++
++sub SMS_ROUND()
++{ my ($W0, $W1, $W2, $W3, $temp1, $temp2, $temp3, $temp4, $temp5) = @_;
++    &psrl($sigma0[1], $W1, $temp1);
++    &psrl($sigma0[0], $W1, $temp2);
++    &psrl($sigma0[2], $W1, $temp3);
++    &psll($SZ*8 - $sigma0[1], $W1, $temp4);
++    &psll($SZ*8 - $sigma0[0], $W1, $temp5);
++    &pxor($temp2, $temp1, $temp1);
++    if( $output =~ /AVX2/ ){
++        &pbroadcast("($Tbl)", $temp2);
++    }
++    &pxor($temp4, $temp3, $temp3);
++    &pxor($temp1, $temp5, $temp5);
++    &pxor($temp3, $temp5, $temp5);
++    &padd($W0, $temp5, $temp5);
++    if( $output =~ /AVX2/ ){
++        &padd($temp2, $W0, $W0);
++    } else {
++        &padd("($Tbl)", $W0, $W0);
++    }
++    &psrl($sigma1[2], $W3, $temp1);
++    &psrl($sigma1[1], $W3, $temp2);
++    &psrl($sigma1[0], $W3, $temp3);
++    &psll($SZ*8 - $sigma1[1], $W3, $temp4);
++    &pxor($temp2, $temp1, $temp1);
++    &pxor($temp4, $temp3, $temp3);
++    &psll($SZ*8 - $sigma1[0], $W3, $temp4);
++    &pxor($temp3, $temp1, $temp1);
++    &pxor($temp4, $temp1, $temp1);
++    &padd($W2, $temp1, $temp1);
++    &pmov($W0, "($inp)");
++    if( $output =~ /AVX2/ ){
++        $code.="lea `$SZ`($Tbl), $Tbl\n";
++    } else {
++        $code.="lea `$SZ*$elems`($Tbl), $Tbl\n";
++    }
++    &padd($temp5, $temp1, $W0);
++}
++
++sub SMS_ROUND_LAST()
++{ my ($W0, $W1, $W2, $W3, $temp1, $temp2, $temp3, $temp4, $temp5) = @_;
++    &psrl($sigma0[1], $W1, $temp1);
++    &psrl($sigma0[0], $W1, $temp2);
++    &psrl($sigma0[2], $W1, $temp3);
++    &psll($SZ*8 - $sigma0[1], $W1, $temp4);
++    &psll($SZ*8 - $sigma0[0], $W1, $temp5);
++    &pxor($temp2, $temp1, $temp1);
++    if( $output =~ /AVX2/ ){
++        &pbroadcast("($Tbl)", $temp2);
++    }
++    &pxor($temp4, $temp3, $temp3);
++    &pxor($temp1, $temp5, $temp5);
++    &pxor($temp3, $temp5, $temp5);
++    &padd($W0, $temp5, $temp5);
++    if( $output =~ /AVX2/ ){
++        &padd($temp2, $W0, $W0);
++    } else {
++        &padd("($Tbl)", $W0, $W0);
++    }
++    &psrl($sigma1[2], $W3, $temp1);
++    &psrl($sigma1[1], $W3, $temp2);
++    &psrl($sigma1[0], $W3, $temp3);
++    &psll($SZ*8 - $sigma1[1], $W3, $temp4);
++    &pxor($temp2, $temp1, $temp1);
++    if( $output =~ /AVX2/ ){
++        &pbroadcast("`$SZ*16`($Tbl)", $temp2);
++    }
++    &pxor($temp4, $temp3, $temp3);
++    &psll($SZ*8 - $sigma1[0], $W3, $temp4);
++    &pxor($temp3, $temp1, $temp1);
++    &pxor($temp4, $temp1, $temp1);
++    &padd($W2, $temp1, $temp1);
++    &pmov($W0, "($inp)");
++    &padd($temp5, $temp1, $W0);
++    if( $output =~ /AVX2/ ){
++        &padd($temp2, $W0, $temp1);
++    } else {
++        &padd("`16*$elems*$SZ`($Tbl)", $W0, $temp1);
++    }
++    if( $output =~ /AVX2/ ){
++        $code.="lea `$SZ`($Tbl), $Tbl\n";
++    } else {
++        $code.="lea `$SZ*$elems`($Tbl), $Tbl\n";
++    }
++    &pmov($temp1, "`16*$SZ*$elems`($inp)");
++}
++
++$code=<<___;
++.text
++
++.globl	$func
++.type	$func,\@function,4
++.align	16
++$func:
++    
++    cmp \$$elems, %rdx
++    jge .Ldo_SMS
++    
++    call $tail
++    
++    ret
++.Ldo_SMS:
++	push	%rbx
++	push	%rbp
++	push	%r12
++	push	%r13
++	push	%r14
++	push	%r15
++	mov	%rsp,%r11		        # copy %rsp
++	sub	\$`$framesz`,%rsp
++	and	\$-64,%rsp		        # align stack frame
++    
++	mov	$ctx,$_ctx		# save ctx, 1st arg
++	mov	%r11,$_rsp		# save copy of %rsp
++    mov %rdx, %r13
++    
++	mov	$SZ*0($ctx),$A
++	mov	$SZ*1($ctx),$B
++	mov	$SZ*2($ctx),$C
++	mov	$SZ*3($ctx),$D
++	mov	$SZ*4($ctx),$E
++	mov	$SZ*5($ctx),$F
++	mov	$SZ*6($ctx),$G
++	mov	$SZ*7($ctx),$H
++    
++.Lprologue:
++
++    sub \$$elems, %r13
++	mov	$inp,$_inp		# save inp, 2nd arg
++	mov	%r13,$_end		# save end pointer, "3rd" arg
++	lea	$TABLE(%rip),$Tbl
++    
++___
++
++    &Gather();
++   
++    
++$code.=<<___;
++   
++    
++    mov \$`$rounds/16-2`, $round
++    lea `4*8+6*$SZ*$elems`(%rsp), $inp
++    
++___
++
++$code.=<<___;
++	jmp	.Lloop
++
++.align	16
++.Lloop:
++
++___
++    ##################
++
++    &StoreTmp("%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    
++	&SMS_ROUND("%`$SIMDR`0", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`14", "%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");   
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`10", "%`$SIMDR`15", "%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`11", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`12", "%`$SIMDR`1", "%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++    
++    &RestoreTmp("%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    
++    ##################
++    
++    &StoreTmp("%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    
++	&SMS_ROUND("%`$SIMDR`4", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`2", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`14", "%`$SIMDR`3", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`15", "%`$SIMDR`4", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++    
++    &RestoreTmp("%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    
++    ##################    
++    
++    &StoreTmp("%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    
++	&SMS_ROUND("%`$SIMDR`8", "%`$SIMDR`9", "%`$SIMDR`1", "%`$SIMDR`6", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`2", "%`$SIMDR`7", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`3", "%`$SIMDR`8", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`11", "%`$SIMDR`12", "%`$SIMDR`4", "%`$SIMDR`9", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");            
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++    
++    &RestoreTmp("%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    
++    ##################    
++    
++    &StoreTmp("%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    
++	&SMS_ROUND("%`$SIMDR`12", "%`$SIMDR`13", "%`$SIMDR`5", "%`$SIMDR`10", "%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`6", "%`$SIMDR`11", "%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`14", "%`$SIMDR`15", "%`$SIMDR`7", "%`$SIMDR`12", "%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND("%`$SIMDR`15", "%`$SIMDR`0", "%`$SIMDR`8", "%`$SIMDR`13", "%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++    
++    &RestoreTmp("%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    ##################
++    
++    $code.="dec $round\n";
++    $code.="jnz .Lloop\n";
++    
++    ##################
++
++    &StoreTmp("%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    
++	&SMS_ROUND_LAST("%`$SIMDR`0", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`14", "%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`10", "%`$SIMDR`15", "%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`11", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`12", "%`$SIMDR`1", "%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++    
++    &RestoreTmp("%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`13");
++    
++    ##################
++    
++    &StoreTmp("%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    
++	&SMS_ROUND_LAST("%`$SIMDR`4", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`2", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`5", "%`$SIMDR`6", "%`$SIMDR`14", "%`$SIMDR`3", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`6", "%`$SIMDR`7", "%`$SIMDR`15", "%`$SIMDR`4", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`7", "%`$SIMDR`8", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++    
++    &RestoreTmp("%`$SIMDR`1", "%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`12");
++    
++    ##################    
++    
++    &StoreTmp("%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    
++	&SMS_ROUND_LAST("%`$SIMDR`8", "%`$SIMDR`9", "%`$SIMDR`1", "%`$SIMDR`6", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`9", "%`$SIMDR`10", "%`$SIMDR`2", "%`$SIMDR`7", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`10", "%`$SIMDR`11", "%`$SIMDR`3", "%`$SIMDR`8", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`11", "%`$SIMDR`12", "%`$SIMDR`4", "%`$SIMDR`9", "%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++    
++    &RestoreTmp("%`$SIMDR`0", "%`$SIMDR`5", "%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`15");
++    
++    ##################    
++    
++    &StoreTmp("%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    
++	&SMS_ROUND_LAST("%`$SIMDR`12", "%`$SIMDR`13", "%`$SIMDR`5", "%`$SIMDR`10", "%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`13", "%`$SIMDR`14", "%`$SIMDR`6", "%`$SIMDR`11", "%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`14", "%`$SIMDR`15", "%`$SIMDR`7", "%`$SIMDR`12", "%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++	&SMS_ROUND_LAST("%`$SIMDR`15", "%`$SIMDR`0", "%`$SIMDR`8", "%`$SIMDR`13", "%`$SIMDR`1", "%`$SIMDR`2", "%`$SIMDR`3", "%`$SIMDR`4", "%`$SIMDR`9");
++    &ROUND(@ROT);
++    unshift(@ROT,pop(@ROT));
++        
++    for($i=0;$i<16;$i++) {
++		&ROUND(@ROT);
++		unshift(@ROT,pop(@ROT));
++	}
++    
++$code.=<<___;
++
++	mov	$_ctx,$ctx
++
++	add	$SZ*0($ctx),$A
++	add	$SZ*1($ctx),$B
++	add	$SZ*2($ctx),$C
++	add	$SZ*3($ctx),$D
++	add	$SZ*4($ctx),$E
++	add	$SZ*5($ctx),$F
++	add	$SZ*6($ctx),$G
++	add	$SZ*7($ctx),$H
++
++	mov	$A,$SZ*0($ctx)
++	mov	$B,$SZ*1($ctx)
++	mov	$C,$SZ*2($ctx)
++	mov	$D,$SZ*3($ctx)
++	mov	$E,$SZ*4($ctx)
++	mov	$F,$SZ*5($ctx)
++	mov	$G,$SZ*6($ctx)
++	mov	$H,$SZ*7($ctx)
++    
++    lea `-$shedSize+$SZ`($inp), $inp
++    
++    mov \$$rounds, $round
++    mov \$`$elems-1`, %rbp
++	jmp	.Lcont
++    
++.align 16
++.Lcont:
++
++___
++
++    for($i=0;$i<8;$i++) {
++		&ROUND(@ROT);
++		unshift(@ROT,pop(@ROT));
++	}
++    
++$code.=<<___;
++
++    sub \$8, $round
++    jne .Lcont
++    
++    Update_exit:
++    
++    mov	$_ctx,$ctx
++
++	add	$SZ*0($ctx),$A
++	add	$SZ*1($ctx),$B
++	add	$SZ*2($ctx),$C
++	add	$SZ*3($ctx),$D
++	add	$SZ*4($ctx),$E
++	add	$SZ*5($ctx),$F
++	add	$SZ*6($ctx),$G
++	add	$SZ*7($ctx),$H
++
++	mov	$A,$SZ*0($ctx)
++	mov	$B,$SZ*1($ctx)
++	mov	$C,$SZ*2($ctx)
++	mov	$D,$SZ*3($ctx)
++	mov	$E,$SZ*4($ctx)
++	mov	$F,$SZ*5($ctx)
++	mov	$G,$SZ*6($ctx)
++	mov	$H,$SZ*7($ctx)
++    
++    mov \$$rounds, $round
++    lea `-$shedSize+$SZ`($inp), $inp
++    
++    dec %rbp
++    jne .Lcont
++    
++    
++    mov $_inp, $inp
++    add \$`$SZ*16*$elems`, $inp
++    
++    mov $_end, %r13
++    cmp \$$elems, %r13
++    jge .Lprologue
++    
++    cmp \$0, %r13
++    jz  .Lfinito
++    
++    mov %r13, %rdx
++    mov	$_ctx,$ctx
++    
++    call    $tail
++
++.Lfinito:
++	mov	$_rsp,%rsi
++	mov	(%rsi),%r15
++	mov	8(%rsi),%r14
++	mov	16(%rsi),%r13
++	mov	24(%rsi),%r12
++	mov	32(%rsi),%rbp
++	mov	40(%rsi),%rbx
++	lea	48(%rsi),%rsp
++.Lepilogue:
++	ret
++.size	$func,.-$func
++___
++
++if ($output =~ /AVX2/)
++{
++
++    if ($SZ==4) {
++        $code.=<<___;
++        .align	64
++        .type	$TABLE,\@object
++        $TABLE:
++            .long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
++            .long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
++            .long	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3
++            .long	0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174
++            .long	0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc
++            .long	0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da
++            .long	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7
++            .long	0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967
++            .long	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13
++            .long	0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85
++            .long	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3
++            .long	0xd192e819,0xd6990624,0xf40e3585,0x106aa070
++            .long	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5
++            .long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
++            .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
++            .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
++        .align 32
++        gatherMask256:
++            .long   0,16,32,48,64,80,96,112
++        .align 32
++        bswapMask256_2:
++            .byte   3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12
++___
++        } else {
++        $code.=<<___;
++        .align	64
++        .type	$TABLE,\@object
++        $TABLE:
++            .quad	0x428a2f98d728ae22,0x7137449123ef65cd
++            .quad	0xb5c0fbcfec4d3b2f,0xe9b5dba58189dbbc
++            .quad	0x3956c25bf348b538,0x59f111f1b605d019
++            .quad	0x923f82a4af194f9b,0xab1c5ed5da6d8118
++            .quad	0xd807aa98a3030242,0x12835b0145706fbe
++            .quad	0x243185be4ee4b28c,0x550c7dc3d5ffb4e2
++            .quad	0x72be5d74f27b896f,0x80deb1fe3b1696b1
++            .quad	0x9bdc06a725c71235,0xc19bf174cf692694
++            .quad	0xe49b69c19ef14ad2,0xefbe4786384f25e3
++            .quad	0x0fc19dc68b8cd5b5,0x240ca1cc77ac9c65
++            .quad	0x2de92c6f592b0275,0x4a7484aa6ea6e483
++            .quad	0x5cb0a9dcbd41fbd4,0x76f988da831153b5
++            .quad	0x983e5152ee66dfab,0xa831c66d2db43210
++            .quad	0xb00327c898fb213f,0xbf597fc7beef0ee4
++            .quad	0xc6e00bf33da88fc2,0xd5a79147930aa725
++            .quad	0x06ca6351e003826f,0x142929670a0e6e70
++            .quad	0x27b70a8546d22ffc,0x2e1b21385c26c926
++            .quad	0x4d2c6dfc5ac42aed,0x53380d139d95b3df
++            .quad	0x650a73548baf63de,0x766a0abb3c77b2a8
++            .quad	0x81c2c92e47edaee6,0x92722c851482353b
++            .quad	0xa2bfe8a14cf10364,0xa81a664bbc423001
++            .quad	0xc24b8b70d0f89791,0xc76c51a30654be30
++            .quad	0xd192e819d6ef5218,0xd69906245565a910
++            .quad	0xf40e35855771202a,0x106aa07032bbd1b8
++            .quad	0x19a4c116b8d2d0c8,0x1e376c085141ab53
++            .quad	0x2748774cdf8eeb99,0x34b0bcb5e19b48a8
++            .quad	0x391c0cb3c5c95a63,0x4ed8aa4ae3418acb
++            .quad	0x5b9cca4f7763e373,0x682e6ff3d6b2b8a3
++            .quad	0x748f82ee5defb2fc,0x78a5636f43172f60
++            .quad	0x84c87814a1f0ab72,0x8cc702081a6439ec
++            .quad	0x90befffa23631e28,0xa4506cebde82bde9
++            .quad	0xbef9a3f7b2c67915,0xc67178f2e372532b
++            .quad	0xca273eceea26619c,0xd186b8c721c0c207
++            .quad	0xeada7dd6cde0eb1e,0xf57d4f7fee6ed178
++            .quad	0x06f067aa72176fba,0x0a637dc5a2c898a6
++            .quad	0x113f9804bef90dae,0x1b710b35131c471b
++            .quad	0x28db77f523047d84,0x32caab7b40c72493
++            .quad	0x3c9ebe0a15c9bebc,0x431d67c49c100d4c
++            .quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
++            .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
++        .align 32
++        gatherMask512:
++            .quad   0,16,32,48
++        .align 32
++        bswapMask512_2:
++            .byte   7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8
++___
++        }
++
++} else {
++
++    if ($SZ==4) {
++    $code.=<<___;
++    .align	64
++    .type	$TABLE,\@object
++    $TABLE:
++        .long	0x428a2f98,0x428a2f98,0x428a2f98,0x428a2f98
++        .long	0x71374491,0x71374491,0x71374491,0x71374491
++        .long	0xb5c0fbcf,0xb5c0fbcf,0xb5c0fbcf,0xb5c0fbcf
++        .long	0xe9b5dba5,0xe9b5dba5,0xe9b5dba5,0xe9b5dba5
++        .long	0x3956c25b,0x3956c25b,0x3956c25b,0x3956c25b
++        .long	0x59f111f1,0x59f111f1,0x59f111f1,0x59f111f1
++        .long	0x923f82a4,0x923f82a4,0x923f82a4,0x923f82a4
++        .long	0xab1c5ed5,0xab1c5ed5,0xab1c5ed5,0xab1c5ed5
++        .long	0xd807aa98,0xd807aa98,0xd807aa98,0xd807aa98
++        .long	0x12835b01,0x12835b01,0x12835b01,0x12835b01
++        .long	0x243185be,0x243185be,0x243185be,0x243185be
++        .long	0x550c7dc3,0x550c7dc3,0x550c7dc3,0x550c7dc3
++        .long	0x72be5d74,0x72be5d74,0x72be5d74,0x72be5d74
++        .long	0x80deb1fe,0x80deb1fe,0x80deb1fe,0x80deb1fe
++        .long	0x9bdc06a7,0x9bdc06a7,0x9bdc06a7,0x9bdc06a7
++        .long	0xc19bf174,0xc19bf174,0xc19bf174,0xc19bf174
++        .long	0xe49b69c1,0xe49b69c1,0xe49b69c1,0xe49b69c1
++        .long	0xefbe4786,0xefbe4786,0xefbe4786,0xefbe4786
++        .long	0x0fc19dc6,0x0fc19dc6,0x0fc19dc6,0x0fc19dc6
++        .long	0x240ca1cc,0x240ca1cc,0x240ca1cc,0x240ca1cc
++        .long	0x2de92c6f,0x2de92c6f,0x2de92c6f,0x2de92c6f
++        .long	0x4a7484aa,0x4a7484aa,0x4a7484aa,0x4a7484aa
++        .long	0x5cb0a9dc,0x5cb0a9dc,0x5cb0a9dc,0x5cb0a9dc
++        .long	0x76f988da,0x76f988da,0x76f988da,0x76f988da
++        .long	0x983e5152,0x983e5152,0x983e5152,0x983e5152
++        .long	0xa831c66d,0xa831c66d,0xa831c66d,0xa831c66d
++        .long	0xb00327c8,0xb00327c8,0xb00327c8,0xb00327c8
++        .long	0xbf597fc7,0xbf597fc7,0xbf597fc7,0xbf597fc7
++        .long	0xc6e00bf3,0xc6e00bf3,0xc6e00bf3,0xc6e00bf3
++        .long	0xd5a79147,0xd5a79147,0xd5a79147,0xd5a79147
++        .long	0x06ca6351,0x06ca6351,0x06ca6351,0x06ca6351
++        .long	0x14292967,0x14292967,0x14292967,0x14292967
++        .long	0x27b70a85,0x27b70a85,0x27b70a85,0x27b70a85
++        .long	0x2e1b2138,0x2e1b2138,0x2e1b2138,0x2e1b2138
++        .long	0x4d2c6dfc,0x4d2c6dfc,0x4d2c6dfc,0x4d2c6dfc
++        .long	0x53380d13,0x53380d13,0x53380d13,0x53380d13
++        .long	0x650a7354,0x650a7354,0x650a7354,0x650a7354
++        .long	0x766a0abb,0x766a0abb,0x766a0abb,0x766a0abb
++        .long	0x81c2c92e,0x81c2c92e,0x81c2c92e,0x81c2c92e
++        .long	0x92722c85,0x92722c85,0x92722c85,0x92722c85
++        .long	0xa2bfe8a1,0xa2bfe8a1,0xa2bfe8a1,0xa2bfe8a1
++        .long	0xa81a664b,0xa81a664b,0xa81a664b,0xa81a664b
++        .long	0xc24b8b70,0xc24b8b70,0xc24b8b70,0xc24b8b70
++        .long	0xc76c51a3,0xc76c51a3,0xc76c51a3,0xc76c51a3
++        .long	0xd192e819,0xd192e819,0xd192e819,0xd192e819
++        .long	0xd6990624,0xd6990624,0xd6990624,0xd6990624
++        .long	0xf40e3585,0xf40e3585,0xf40e3585,0xf40e3585
++        .long	0x106aa070,0x106aa070,0x106aa070,0x106aa070
++        .long	0x19a4c116,0x19a4c116,0x19a4c116,0x19a4c116
++        .long	0x1e376c08,0x1e376c08,0x1e376c08,0x1e376c08
++        .long	0x2748774c,0x2748774c,0x2748774c,0x2748774c
++        .long	0x34b0bcb5,0x34b0bcb5,0x34b0bcb5,0x34b0bcb5
++        .long	0x391c0cb3,0x391c0cb3,0x391c0cb3,0x391c0cb3
++        .long	0x4ed8aa4a,0x4ed8aa4a,0x4ed8aa4a,0x4ed8aa4a
++        .long	0x5b9cca4f,0x5b9cca4f,0x5b9cca4f,0x5b9cca4f
++        .long	0x682e6ff3,0x682e6ff3,0x682e6ff3,0x682e6ff3
++        .long	0x748f82ee,0x748f82ee,0x748f82ee,0x748f82ee
++        .long	0x78a5636f,0x78a5636f,0x78a5636f,0x78a5636f
++        .long	0x84c87814,0x84c87814,0x84c87814,0x84c87814
++        .long	0x8cc70208,0x8cc70208,0x8cc70208,0x8cc70208
++        .long	0x90befffa,0x90befffa,0x90befffa,0x90befffa
++        .long	0xa4506ceb,0xa4506ceb,0xa4506ceb,0xa4506ceb
++        .long	0xbef9a3f7,0xbef9a3f7,0xbef9a3f7,0xbef9a3f7
++        .long	0xc67178f2,0xc67178f2,0xc67178f2,0xc67178f2
++
++    .align 16
++    bswapMask256:
++        .byte   3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12
++___
++    } else {
++    $code.=<<___;
++    .align	64
++    .type	$TABLE,\@object
++    $TABLE:
++        .quad   0x428a2f98d728ae22, 0x428a2f98d728ae22
++        .quad   0x7137449123ef65cd, 0x7137449123ef65cd
++        .quad   0xb5c0fbcfec4d3b2f, 0xb5c0fbcfec4d3b2f
++        .quad   0xe9b5dba58189dbbc, 0xe9b5dba58189dbbc  
++        .quad   0x3956c25bf348b538, 0x3956c25bf348b538
++        .quad   0x59f111f1b605d019, 0x59f111f1b605d019
++        .quad   0x923f82a4af194f9b, 0x923f82a4af194f9b
++        .quad   0xab1c5ed5da6d8118, 0xab1c5ed5da6d8118   
++        .quad   0xd807aa98a3030242, 0xd807aa98a3030242
++        .quad   0x12835b0145706fbe, 0x12835b0145706fbe
++        .quad   0x243185be4ee4b28c, 0x243185be4ee4b28c
++        .quad   0x550c7dc3d5ffb4e2, 0x550c7dc3d5ffb4e2 
++        .quad   0x72be5d74f27b896f, 0x72be5d74f27b896f
++        .quad   0x80deb1fe3b1696b1, 0x80deb1fe3b1696b1
++        .quad   0x9bdc06a725c71235, 0x9bdc06a725c71235
++        .quad   0xc19bf174cf692694, 0xc19bf174cf692694 
++        .quad   0xe49b69c19ef14ad2, 0xe49b69c19ef14ad2
++        .quad   0xefbe4786384f25e3, 0xefbe4786384f25e3
++        .quad   0x0fc19dc68b8cd5b5, 0x0fc19dc68b8cd5b5
++        .quad   0x240ca1cc77ac9c65, 0x240ca1cc77ac9c65 
++        .quad   0x2de92c6f592b0275, 0x2de92c6f592b0275
++        .quad   0x4a7484aa6ea6e483, 0x4a7484aa6ea6e483
++        .quad   0x5cb0a9dcbd41fbd4, 0x5cb0a9dcbd41fbd4
++        .quad   0x76f988da831153b5, 0x76f988da831153b5
++        .quad   0x983e5152ee66dfab, 0x983e5152ee66dfab
++        .quad   0xa831c66d2db43210, 0xa831c66d2db43210
++        .quad   0xb00327c898fb213f, 0xb00327c898fb213f
++        .quad   0xbf597fc7beef0ee4, 0xbf597fc7beef0ee4 
++        .quad   0xc6e00bf33da88fc2, 0xc6e00bf33da88fc2
++        .quad   0xd5a79147930aa725, 0xd5a79147930aa725
++        .quad   0x06ca6351e003826f, 0x06ca6351e003826f
++        .quad   0x142929670a0e6e70, 0x142929670a0e6e70 
++        .quad   0x27b70a8546d22ffc, 0x27b70a8546d22ffc
++        .quad   0x2e1b21385c26c926, 0x2e1b21385c26c926
++        .quad   0x4d2c6dfc5ac42aed, 0x4d2c6dfc5ac42aed
++        .quad   0x53380d139d95b3df, 0x53380d139d95b3df 
++        .quad   0x650a73548baf63de, 0x650a73548baf63de
++        .quad   0x766a0abb3c77b2a8, 0x766a0abb3c77b2a8
++        .quad   0x81c2c92e47edaee6, 0x81c2c92e47edaee6
++        .quad   0x92722c851482353b, 0x92722c851482353b
++        .quad   0xa2bfe8a14cf10364, 0xa2bfe8a14cf10364
++        .quad   0xa81a664bbc423001, 0xa81a664bbc423001
++        .quad   0xc24b8b70d0f89791, 0xc24b8b70d0f89791
++        .quad   0xc76c51a30654be30, 0xc76c51a30654be30 
++        .quad   0xd192e819d6ef5218, 0xd192e819d6ef5218
++        .quad   0xd69906245565a910, 0xd69906245565a910
++        .quad   0xf40e35855771202a, 0xf40e35855771202a
++        .quad   0x106aa07032bbd1b8, 0x106aa07032bbd1b8 
++        .quad   0x19a4c116b8d2d0c8, 0x19a4c116b8d2d0c8
++        .quad   0x1e376c085141ab53, 0x1e376c085141ab53
++        .quad   0x2748774cdf8eeb99, 0x2748774cdf8eeb99
++        .quad   0x34b0bcb5e19b48a8, 0x34b0bcb5e19b48a8 
++        .quad   0x391c0cb3c5c95a63, 0x391c0cb3c5c95a63
++        .quad   0x4ed8aa4ae3418acb, 0x4ed8aa4ae3418acb
++        .quad   0x5b9cca4f7763e373, 0x5b9cca4f7763e373
++        .quad   0x682e6ff3d6b2b8a3, 0x682e6ff3d6b2b8a3 
++        .quad   0x748f82ee5defb2fc, 0x748f82ee5defb2fc
++        .quad   0x78a5636f43172f60, 0x78a5636f43172f60
++        .quad   0x84c87814a1f0ab72, 0x84c87814a1f0ab72
++        .quad   0x8cc702081a6439ec, 0x8cc702081a6439ec 
++        .quad   0x90befffa23631e28, 0x90befffa23631e28
++        .quad   0xa4506cebde82bde9, 0xa4506cebde82bde9
++        .quad   0xbef9a3f7b2c67915, 0xbef9a3f7b2c67915
++        .quad   0xc67178f2e372532b, 0xc67178f2e372532b 
++        .quad   0xca273eceea26619c, 0xca273eceea26619c
++        .quad   0xd186b8c721c0c207, 0xd186b8c721c0c207
++        .quad   0xeada7dd6cde0eb1e, 0xeada7dd6cde0eb1e
++        .quad   0xf57d4f7fee6ed178, 0xf57d4f7fee6ed178 
++        .quad   0x06f067aa72176fba, 0x06f067aa72176fba
++        .quad   0x0a637dc5a2c898a6, 0x0a637dc5a2c898a6
++        .quad   0x113f9804bef90dae, 0x113f9804bef90dae
++        .quad   0x1b710b35131c471b, 0x1b710b35131c471b 
++        .quad   0x28db77f523047d84, 0x28db77f523047d84
++        .quad   0x32caab7b40c72493, 0x32caab7b40c72493
++        .quad   0x3c9ebe0a15c9bebc, 0x3c9ebe0a15c9bebc
++        .quad   0x431d67c49c100d4c, 0x431d67c49c100d4c 
++        .quad   0x4cc5d4becb3e42b6, 0x4cc5d4becb3e42b6
++        .quad   0x597f299cfc657e2a, 0x597f299cfc657e2a
++        .quad   0x5fcb6fab3ad6faec, 0x5fcb6fab3ad6faec
++        .quad   0x6c44198c4a475817, 0x6c44198c4a475817
++
++    .align 16
++    bswapMask512:
++        .byte   7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8
++___
++
++    }
++}
++$code =~ s/\`([^\`]*)\`/eval $1/gem;
++print $code;
++close STDOUT;
++
+diff -urN a/crypto/sha/sha256.c b/crypto/sha/sha256.c
+--- a/crypto/sha/sha256.c	2011-06-01 16:39:44.000000000 +0300
++++ b/crypto/sha/sha256.c	2012-03-29 21:04:16.000006000 +0200
+@@ -106,11 +106,20 @@
+ #define	HASH_UPDATE		SHA256_Update
+ #define	HASH_TRANSFORM		SHA256_Transform
+ #define	HASH_FINAL		SHA256_Final
++#ifdef SHA_SMS_AVX1
++#define HASH_BLOCK_DATA_ORDER   sha256_4SMS
++#elif defined SHA_SMS_AVX2
++#define HASH_BLOCK_DATA_ORDER   sha256_8SMS
++#else
+ #define	HASH_BLOCK_DATA_ORDER	sha256_block_data_order
++#endif
+ #ifndef SHA256_ASM
+ static
+ #endif
++
+ void sha256_block_data_order (SHA256_CTX *ctx, const void *in, size_t num);
++void sha256_4SMS(SHA256_CTX *ctx, const void *in, size_t num);
++void sha256_8SMS(SHA256_CTX *ctx, const void *in, size_t num);
+ 
+ #include "md32_common.h"
+ 
+diff -urN a/crypto/sha/sha512.c b/crypto/sha/sha512.c
+--- a/crypto/sha/sha512.c	2011-11-14 22:58:01.000000000 +0200
++++ b/crypto/sha/sha512.c	2012-03-29 20:56:06.000001000 +0200
+@@ -94,7 +94,10 @@
+ #ifndef SHA512_ASM
+ static
+ #endif
++
+ void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num);
++void sha512_2SMS(SHA512_CTX *ctx, const void *in, size_t num);
++void sha512_4SMS(SHA512_CTX *ctx, const void *in, size_t num);
+ 
+ int SHA512_Final (unsigned char *md, SHA512_CTX *c)
+ 	{
+@@ -217,7 +220,14 @@
+ 				data += sizeof(c->u);
+ 		else
+ #endif
++
++#ifdef SHA_SMS_AVX1
++            sha512_2SMS(c,data,len/sizeof(c->u)),
++#elif defined SHA_SMS_AVX2
++            sha512_4SMS(c,data,len/sizeof(c->u)),
++#else
+ 			sha512_block_data_order (c,data,len/sizeof(c->u)),
++#endif
+ 			data += len,
+ 			len  %= sizeof(c->u),
+ 			data -= len;
