@@ -90,11 +90,16 @@ BC_CONSTEXPR size_t locktime_threshold = 500000000;
 BC_CONSTEXPR uint32_t proof_of_work_limit = 0x1e0fffff;
 
 #else // LITECOIN
+#ifdef WITH_EXTBLK
+BC_CONSTEXPR size_t max_work_bits = 0x1e01ffff;
+BC_CONSTEXPR uint32_t proof_of_work_limit = 0x1e01ffff;
+#else
 BC_CONSTEXPR size_t max_work_bits = 0x1d00ffff;
 // This may not be flexible, keep internal.
 
 //0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 BC_CONSTEXPR uint32_t proof_of_work_limit = 0x1d00ffff;
+#endif
 #endif // LITECOIN
 
 // Derived.
