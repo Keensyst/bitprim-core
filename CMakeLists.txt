@@ -24,6 +24,11 @@ option(WITH_EXAMPLES "Compile with examples." ON)
 
 set(Boost_DEBUG ON)
 
+# EXTENSION BLOCK NETWORK
+option(WITH_EXTBLK "Compile with Extension blocks support." OFF)
+if (WITH_EXTBLK)
+  add_definitions(-DWITH_EXTBLK)
+endif()
 
 
 # Implement --with-icu and define BOOST_HAS_ICU and output ${icu}.
