@@ -71,6 +71,7 @@ bool operation::from_data(std::istream& stream)
     return from_data(source);
 }
 
+// TODO: optimize for larger data by using a shared byte array.
 bool operation::from_data(reader& source)
 {
     reset();
@@ -112,8 +113,7 @@ bool operation::from_string(const std::string& mnemonic)
     {
         if (decode_base16(data_, trim_push(mnemonic)) && !is_oversized())
         {
-            // The produces the minimal data encoding.
-            code_ = opcode_from_data(data_);
+            code_ = minimal_opcode_from_data(data_);
             valid_ = true;
 
             // Revert data if opcode_from_data produced a numeric encoding.

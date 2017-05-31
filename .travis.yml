@@ -107,23 +107,23 @@ script:
   ############################################################################
   - cd ${DEPS_DIR}
   - wget -O build_deps.sh  https://raw.githubusercontent.com/hanchon/travis_complete_cache/master/build_deps.sh
-  - sudo chmod 777 build_deps.sh  
+  - sudo chmod 777 build_deps.sh
   # Install Boost
   - ./build_deps.sh boost "${TRAVIS_OS_NAME}"
   #Set linux variables:
   - |
     if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
-      export BOOST_OPTS="-DBOOST_ROOT=/home/travis/boost -DBOOST_INCLUDEDIR=/home/travis/boost/include -DBOOST_LIBRARYDIR=/home/travis/boost/lib"    
-      export ZEROMQ=" -DZeroMQ_ROOT_DIR=/home/travis/zeromq "  
+      export BOOST_OPTS="-DBOOST_ROOT=/home/travis/boost -DBOOST_INCLUDEDIR=/home/travis/boost/include -DBOOST_LIBRARYDIR=/home/travis/boost/lib"
+      export ZEROMQ=" -DZeroMQ_ROOT_DIR=/home/travis/zeromq "
       export PROTOBUF=" -DProtobuf_ROOT_DIR=/home/travis/protobuf "
       export PATH=/home/travis/protobuf/bin:${PATH}
       sudo ldconfig
     else
-      export BOOST_OPTS=" "    
-      export ZEROMQ=" "  
+      export BOOST_OPTS=" "
+      export ZEROMQ=" "
       export PROTOBUF=" "
-    fi  
-    
+    fi
+
   ############################################################################
   # Custom script for internal dependences
   ############################################################################
@@ -131,7 +131,7 @@ script:
   - sudo chmod 777 build_bitprim.sh
   #Install bitprim-secp256k1
   - ./build_bitprim.sh secp256k1 "${TRAVIS_OS_NAME}"
- 
+
 
 before_script:
   ############################################################################
@@ -149,12 +149,12 @@ before_script:
 
   - cd ${TRAVIS_BUILD_DIR}
   - mkdir build
-  - cd build 
+  - cd build
   - cmake .. -DWITH_TESTS=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" ${BOOST_OPTS}
 
 script:
 
-  - make -j2 
+  - make -j2
   - sudo make install
 
 notifications:
