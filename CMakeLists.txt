@@ -401,6 +401,9 @@ set(bitprim_core_sources
         src/chain/script.cpp
         src/chain/transaction.cpp
 
+        src/chain/point_value.cpp
+        src/chain/points_value.cpp
+
         src/machine/interpreter.cpp
         src/machine/number.cpp
         src/machine/opcode.cpp
@@ -535,6 +538,8 @@ set(bitprim_core_sources
         src/utility/thread.cpp
         src/utility/threadpool.cpp
         src/utility/work.cpp
+
+        src/utility/prioritized_mutex.cpp
 
         src/wallet/bitcoin_uri.cpp
         src/wallet/dictionary.cpp
@@ -1163,6 +1168,8 @@ set(_bitprim_core_headers
     bitcoin/bitcoin/chain/script.hpp
     bitcoin/bitcoin/chain/stealth.hpp
     bitcoin/bitcoin/chain/transaction.hpp
+    bitcoin/bitcoin/chain/point_value.hpp
+    bitcoin/bitcoin/chain/points_value.hpp
 
     bitcoin/bitcoin/machine/interpreter.hpp
     bitcoin/bitcoin/machine/number.hpp    
@@ -1347,7 +1354,9 @@ set(_bitprim_core_headers
     #bitcoin/bitcoin/utility/variable_uint_size.hpp
     bitcoin/bitcoin/utility/work.hpp
     bitcoin/bitcoin/utility/writer.hpp
-    
+    bitcoin/bitcoin/utility/prioritized_mutex.hpp
+
+
     bitcoin/bitcoin/wallet/bitcoin_uri.hpp
     bitcoin/bitcoin/wallet/dictionary.hpp
     bitcoin/bitcoin/wallet/ec_private.hpp
