@@ -120,8 +120,10 @@ public:
     static map get_map(size_t height, const checkpoints& checkpoints,
         uint32_t forks);
 
+    static uint32_t signal_version(uint32_t forks);
+
     /// Create pool state from top block chain state.
-    chain_state(const chain_state& top, uint32_t version);
+    chain_state(const chain_state& top);
 
     /// Create block state from pool chain state of same height.
     chain_state(const chain_state& pool, const chain::block& block);
@@ -175,7 +177,7 @@ private:
     static size_t collision_height(size_t height, uint32_t forks,
         const checkpoints& checkpoints);
 
-    static data to_pool(const chain_state& top, uint32_t version);
+    static data to_pool(const chain_state& top);
     static data to_block(const chain_state& pool_state, const block& block);
 
     static uint32_t work_required_retarget(const data& values);
@@ -187,9 +189,17 @@ private:
     // static bool is_retarget_height(size_t height);
 
     // easy blocks
+
+    //OLD
     static uint32_t work_required_easy(const data& values); //TODO: BITPRIM: nueva, producto del merge Febrero2017
-    static uint32_t elapsed_time_limit(const chain_state::data& values);
-    static bool is_retarget_or_non_limit(size_t height, uint32_t bits); //TODO: BITPRIM: nueva, producto del merge Febrero2017
+//    static uint32_t elapsed_time_limit(const chain_state::data& values);
+//    static bool is_retarget_or_non_limit(size_t height, uint32_t bits); //TODO: BITPRIM: nueva, producto del merge Febrero2017
+
+    static uint32_t easy_work_required(const data& values);
+    static uint32_t easy_time_limit(const chain_state::data& values);
+    static bool is_retarget_or_non_limit(size_t height, uint32_t bits);
+//    static bool is_retarget_height(size_t height);
+
 
     // This is retained as an optimization for other constructions.
     // A similar height clone can be partially computed, reducing query cost.

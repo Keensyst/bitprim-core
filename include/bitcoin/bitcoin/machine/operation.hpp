@@ -47,8 +47,8 @@ public:
     operation(operation&& other);
     operation(const operation& other);
 
-    operation(data_chunk&& uncoded, bool minimal = true);
-    operation(const data_chunk& uncoded, bool minimal = true);
+    operation(data_chunk&& uncoded, bool minimal=true);
+    operation(const data_chunk& uncoded, bool minimal=true);
 
     operation(opcode code);
 
@@ -99,12 +99,12 @@ public:
     // Utilities.
     //-------------------------------------------------------------------------
 
-    /// Compute the minimal data opcode based on size alone.
+    /// Compute consensus (non-minimal) data opcode based on size alone.
     static opcode opcode_from_size(size_t size);
 
     /// Compute the minimal data opcode for a given chunk of data.
     /// If a numeric code is used then corresponding data must be set to empty.
-    static opcode opcode_from_data(const data_chunk& data);
+    static opcode minimal_opcode_from_data(const data_chunk& data);
 
     /// Convert the [1..16] value to the corresponding opcode (or undefined).
     static opcode opcode_from_positive(uint8_t value);
@@ -117,29 +117,26 @@ public:
     static bool is_counted(opcode code);
     static bool is_numeric(opcode code);
     static bool is_positive(opcode code);
+    static bool is_reserved(opcode code);
     static bool is_disabled(opcode code);
     static bool is_conditional(opcode code);
     static bool is_relaxed_push(opcode code);
 
-    // Validation.
-    //-------------------------------------------------------------------------
-
-    /// Categories of opcodes.
+    /// Categories of operations.
     bool is_push() const;
     bool is_counted() const;
     bool is_positive() const;
     bool is_disabled() const;
     bool is_conditional() const;
     bool is_relaxed_push() const;
-
-    /// Validate the data against the code.
     bool is_oversized() const;
+    bool is_minimal_push() const;
 
 protected:
     operation(opcode code, data_chunk&& data, bool valid);
     operation(opcode code, const data_chunk& data, bool valid);
     static uint32_t read_data_size(opcode code, reader& source);
-    opcode opcode_from_data(const data_chunk& uncoded, bool minimal);
+    opcode opcode_from_data(const data_chunk& data, bool minimal);
     void reset();
 
 private:
