@@ -43,6 +43,17 @@ public:
         block = 2,
         filtered_block = 3,
         compact_block = 4
+#ifdef WITH_EXTBLK
+/*
+     EXTENSION_TX: 1 | (1 << 29),
+     EXTENSION_BLOCK: 2 | (1 << 29),
+     EXTENSION_FILTERED_BLOCK: 3 | (1 << 29),
+ */
+        ,
+        ext_tx = 536870913,
+        ext_block = 536870914,
+        ext_filtered_block = 536870915
+#endif
     };
 
     static type_id to_type(uint32_t value);
