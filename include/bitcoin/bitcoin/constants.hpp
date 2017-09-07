@@ -77,7 +77,7 @@ BC_CONSTEXPR size_t max_cltv_number_size = 5;
 BC_CONSTEXPR size_t min_coinbase_size = 2;
 BC_CONSTEXPR size_t max_coinbase_size = 100;
 BC_CONSTEXPR size_t median_time_past_interval = 11;
-BC_CONSTEXPR size_t max_block_size = 1000000;
+BC_CONSTEXPR size_t max_block_size = 8000000;
 BC_CONSTEXPR size_t coinbase_maturity = 100;
 BC_CONSTEXPR size_t time_stamp_future_hours = 2;
 BC_CONSTEXPR size_t locktime_threshold = 500000000;
@@ -98,7 +98,7 @@ BC_CONSTEXPR uint32_t proof_of_work_limit = 0x1d00ffff;
 #endif // LITECOIN
 
 // Derived.
-BC_CONSTEXPR size_t max_block_sigops = max_block_size / 50; //TODO: BITPRIM: esto es producto del merge de Febrero de 2017. Revisar si en Litecoin la constante es distinta
+BC_CONSTEXPR size_t max_block_sigops = max_block_size / 25; //TODO: BITPRIM: esto es producto del merge de Febrero de 2017. Revisar si en Litecoin la constante es distinta
 
 
 // Timespan constants.
