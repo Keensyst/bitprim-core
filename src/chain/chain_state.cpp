@@ -114,9 +114,23 @@ inline uint32_t timestamp_high(const chain_state::data& values)
     return values.timestamp.ordered.back();
 }
 
+inline uint32_t timestamp_last_six(const chain_state::data& values)
+{
+    auto it = values.timestamp.ordered.end();
+    it--;
+    auto lastValue = *it;
+    it-=6;
+    auto sixSpanValue = *it;
+    return lastValue - sixSpanValue;
+}
+
 inline uint32_t bits_high(const chain_state::data& values)
 {
     return values.bits.ordered.back();
+}
+
+uint256_t chain_state::difficulty_adjustment_cash(uint256_t target){
+    return target + (target >> 2);
 }
 
 // Statics.
@@ -303,7 +317,20 @@ uint32_t chain_state::work_required(const data& values, uint32_t forks)
     if (script::is_enabled(forks, rule_fork::easy_blocks))
         return work_required_easy(values);
 
+    if( (values.height > bitcoin_cash_activation_height) && (timestamp_last_six(values) > (12 * 3600)) )
+        return work_required_adjust_cash(values);
+
     return bits_high(values);
+}
+
+uint32_t chain_state::work_required_adjust_cash(const data& values)
+{
+    const compact bits(bits_high(values));
+    uint256_t target(bits);
+    target = difficulty_adjustment_cash(target); //target += (target >> 2);
+    static const uint256_t pow_limit(compact{ proof_of_work_limit });
+    return target > pow_limit ? proof_of_work_limit : compact(target).normal();
+
 }
 
 // [CalculateNextWorkRequired]

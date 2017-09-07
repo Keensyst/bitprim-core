@@ -138,6 +138,7 @@ BC_CONSTEXPR size_t bip66_version = 3;
 BC_CONSTEXPR size_t bip34_version = 2;
 BC_CONSTEXPR size_t first_version = 1;
 
+BC_CONSTEXPR size_t bitcoin_cash_activation_height = 478558;
 
 #ifdef LITECOIN
 
