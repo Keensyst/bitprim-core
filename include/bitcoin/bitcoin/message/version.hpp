@@ -97,7 +97,7 @@ public:
         none = 0,
 
         // The network is capable of serving the block chain (full node).
-        node_network = (1 << 0),
+        node_network = (1 << 5),
 
         // Requires version.value >= level::bip64 (BIP64 is draft only).
         // The network is capable of responding to the getutxo protocol request.
