@@ -164,7 +164,7 @@ protected:
     };
 
     static activations activation(const data& values, uint32_t forks);
-    static uint32_t median_time_past(const data& values, uint32_t forks);
+    static uint32_t median_time_past(const data& values, uint32_t forks, const bool tip = true);
     static uint32_t work_required(const data& values, uint32_t forks);
 
 private:
