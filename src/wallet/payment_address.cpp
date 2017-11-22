@@ -135,9 +135,7 @@ payment_address payment_address::from_public(const ec_public& point,
         return payment_address();
 
     data_chunk data;
-    return point.to_data(data) ?
-        payment_address(bitcoin_short_hash(data), version) :
-        payment_address();
+    return point.to_data(data) ? payment_address(bitcoin_short_hash(data), version) : payment_address();
 }
 
 payment_address payment_address::from_script(const chain::script& script,
@@ -207,7 +205,7 @@ bool payment_address::operator<(const payment_address& other) const
 bool payment_address::operator==(const payment_address& other) const
 {
     return valid_ == other.valid_ && version_ == other.version_ &&
-        hash_ == other.hash_;
+           hash_ == other.hash_;
 }
 
 bool payment_address::operator!=(const payment_address& other) const
@@ -243,7 +241,7 @@ payment_address payment_address::extract(const chain::script& script,
     uint8_t p2kh_version, uint8_t p2sh_version)
 {
     if (!script.is_valid())
-        return{};
+        return {};
 
     short_hash hash;
     const auto pattern = script.pattern();
@@ -298,7 +296,7 @@ payment_address payment_address::extract(const chain::script& script,
 
         // TODO: extract addresses into a vector result.
         case script_pattern::pay_multisig:
-            return{};
+            return {};
 
         case script_pattern::pay_public_key:
         {
@@ -326,11 +324,11 @@ payment_address payment_address::extract(const chain::script& script,
 
         // TODO: extract addresses into a vector result.
         case script_pattern::sign_multisig:
-            return{};
+            return {};
 
         // There is no address in a sign_public_key script.
         case script_pattern::sign_public_key:
-            return{};
+            return {};
 
         case script_pattern::sign_key_hash:
         {
@@ -351,7 +349,7 @@ payment_address payment_address::extract(const chain::script& script,
 
         case script_pattern::non_standard:
         default:
-            return{};
+            return {};
     }
 }
 

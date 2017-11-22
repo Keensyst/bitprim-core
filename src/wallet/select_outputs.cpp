@@ -48,18 +48,15 @@ void select_outputs::greedy(points_value& out, const points_value& unspent,
     // Copy the points list for safe manipulation.
     auto copy = unspent.points;
 
-    const auto below = [minimum_value](const point_value& point)
-    {
+    const auto below = [minimum_value](const point_value& point) {
         return point.value() < minimum_value;
     };
 
-    const auto lesser = [](const point_value& left, const point_value& right)
-    {
+    const auto lesser = [](const point_value& left, const point_value& right) {
         return left.value() < right.value();
     };
 
-    const auto greater = [](const point_value& left, const point_value& right)
-    {
+    const auto greater = [](const point_value& left, const point_value& right) {
         return left.value() > right.value();
     };
 
@@ -97,12 +94,11 @@ void select_outputs::individual(points_value& out, const points_value& unspent,
     out.points.reserve(unspent.points.size());
 
     // Select all individual points that satisfy the minimum.
-    for (const auto& point: unspent.points)
+    for (const auto& point : unspent.points)
         if (point.value() >= minimum_value)
             out.points.push_back(point);
 
-    const auto lesser = [](const point_value& left, const point_value& right)
-    {
+    const auto lesser = [](const point_value& left, const point_value& right) {
         return left.value() < right.value();
     };
 
@@ -114,7 +110,7 @@ void select_outputs::individual(points_value& out, const points_value& unspent,
 void select_outputs::select(points_value& out, const points_value& unspent,
     uint64_t minimum_value, algorithm option)
 {
-    switch(option)
+    switch (option)
     {
         case algorithm::individual:
         {

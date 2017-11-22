@@ -66,11 +66,11 @@ void stealth_sender::initialize(const ec_secret& ephemeral_private,
 
     ec_compressed sender_public;
     if (!uncover_stealth(sender_public, address.scan_key(), ephemeral_private,
-        spend_keys.front()))
+            spend_keys.front()))
         return;
 
     if (create_stealth_script(script_, ephemeral_private, filter, seed))
-        address_ = { sender_public, version_ };
+        address_ = {sender_public, version_};
 }
 
 // Will be invalid if construct fails.

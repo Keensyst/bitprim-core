@@ -30,7 +30,6 @@
 #include <bitcoin/bitcoin/utility/istream_reader.hpp>
 #include <bitcoin/bitcoin/utility/ostream_writer.hpp>
 
-
 namespace libbitcoin {
 namespace wallet {
 

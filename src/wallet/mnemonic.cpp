@@ -59,7 +59,7 @@ bool validate_mnemonic(const word_list& words, const dictionary& lexicon)
     size_t bit = 0;
     data_chunk data((total_bits + byte_bits - 1) / byte_bits, 0);
 
-    for (const auto& word: words)
+    for (const auto& word : words)
     {
         const auto position = find_position(lexicon, word);
         if (position == -1)
@@ -81,7 +81,7 @@ bool validate_mnemonic(const word_list& words, const dictionary& lexicon)
     return std::equal(mnemonic.begin(), mnemonic.end(), words.begin());
 }
 
-word_list create_mnemonic(data_slice entropy, const dictionary &lexicon)
+word_list create_mnemonic(data_slice entropy, const dictionary& lexicon)
 {
     if ((entropy.size() % mnemonic_seed_multiple) != 0)
         return word_list();
@@ -124,7 +124,7 @@ word_list create_mnemonic(data_slice entropy, const dictionary &lexicon)
 bool validate_mnemonic(const word_list& mnemonic,
     const dictionary_list& lexicons)
 {
-    for (const auto& lexicon: lexicons)
+    for (const auto& lexicon : lexicons)
         if (validate_mnemonic(mnemonic, *lexicon))
             return true;
 

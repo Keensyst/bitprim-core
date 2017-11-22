@@ -38,7 +38,7 @@ stealth_receiver::stealth_receiver(const ec_secret& scan_private,
     if (secret_to_public(scan_public, scan_private_) &&
         secret_to_public(spend_public_, spend_private_))
     {
-        address_ = { filter, scan_public, { spend_public_ } };
+        address_ = {filter, scan_public, {spend_public_}};
     }
 }
 
@@ -48,7 +48,7 @@ stealth_receiver::operator const bool() const
 }
 
 // Will be invalid if construct fails.
-const wallet::stealth_address&  stealth_receiver::stealth_address() const
+const wallet::stealth_address& stealth_receiver::stealth_address() const
 {
     return address_;
 }
@@ -58,10 +58,10 @@ bool stealth_receiver::derive_address(payment_address& out_address,
 {
     ec_compressed receiver_public;
     if (!uncover_stealth(receiver_public, ephemeral_public, scan_private_,
-        spend_public_))
+            spend_public_))
         return false;
 
-    out_address = { receiver_public, version_ };
+    out_address = {receiver_public, version_};
     return true;
 }
 

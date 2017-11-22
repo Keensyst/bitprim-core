@@ -54,11 +54,9 @@ static bool recover(short_hash& out_hash, bool compressed,
     const ec_signature& compact, uint8_t recovery_id,
     const hash_digest& message_digest)
 {
-    const recoverable_signature recoverable
-    {
+    const recoverable_signature recoverable{
         compact,
-        recovery_id
-    };
+        recovery_id};
 
     if (compressed)
     {
@@ -123,7 +121,7 @@ bool sign_message(message_signature& signature, data_slice message,
 {
     ec_private secret(wif);
     return (secret &&
-        sign_message(signature, message, secret, secret.compressed()));
+            sign_message(signature, message, secret, secret.compressed()));
 }
 
 bool sign_message(message_signature& signature, data_slice message,
@@ -155,7 +153,7 @@ bool verify_message(data_slice message, const payment_address& address,
     short_hash hash;
     const auto message_digest = hash_message(message);
     return recover(hash, compressed, compact, recovery_id, message_digest) &&
-        (hash == address.hash());
+           (hash == address.hash());
 }
 
 } // namespace wallet

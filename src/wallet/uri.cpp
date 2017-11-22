@@ -31,27 +31,24 @@ namespace wallet {
 // since those give different answers based on the current locale.
 static bool is_alpha(const char c)
 {
-    return
-        ('A' <= c && c <= 'Z') ||
-        ('a' <= c && c <= 'z');
+    return ('A' <= c && c <= 'Z') ||
+           ('a' <= c && c <= 'z');
 }
 
 static bool is_scheme(const char c)
 {
-    return
-        is_alpha(c) || ('0' <= c && c <= '9') ||
-        '+' == c || '-' == c || '.' == c;
+    return is_alpha(c) || ('0' <= c && c <= '9') ||
+           '+' == c || '-' == c || '.' == c;
 }
 
 static bool is_path_char(const char c)
 {
-    return
-        is_alpha(c) || ('0' <= c && c <= '9') ||
-        '-' == c || '.' == c || '_' == c || '~' == c || // unreserved
-        '!' == c || '$' == c || '&' == c || '\'' == c ||
-        '(' == c || ')' == c || '*' == c || '+' == c ||
-        ',' == c || ';' == c || '=' == c || // sub-delims
-        ':' == c || '@' == c;
+    return is_alpha(c) || ('0' <= c && c <= '9') ||
+           '-' == c || '.' == c || '_' == c || '~' == c || // unreserved
+           '!' == c || '$' == c || '&' == c || '\'' == c ||
+           '(' == c || ')' == c || '*' == c || '+' == c ||
+           ',' == c || ';' == c || '=' == c || // sub-delims
+           ':' == c || '@' == c;
 }
 
 static bool is_path(const char c)
@@ -108,7 +105,7 @@ static std::string unescape(const std::string& in)
         if ('%' == *i && 2 < in.end() - i && is_base16(i[1]) &&
             is_base16(i[2]))
         {
-            const char temp[] = { i[1], i[2], 0 };
+            const char temp[] = {i[1], i[2], 0};
             out.push_back(base16_literal(temp)[0]);
             i += 3;
         }
@@ -128,7 +125,7 @@ static std::string escape(const std::string& in, bool (*is_valid)(char))
 {
     std::ostringstream stream;
     stream << std::hex << std::uppercase << std::setfill('0');
-    for (const auto c: in)
+    for (const auto c : in)
     {
         if (is_valid(c))
             stream << c;
@@ -240,7 +237,7 @@ std::string uri::encoded() const
 std::string uri::scheme() const
 {
     auto out = scheme_;
-    for (auto& c: out)
+    for (auto& c : out)
         if ('A' <= c && c <= 'Z')
             c = c - 'A' + 'a';
 
@@ -371,7 +368,7 @@ void uri::encode_query(const query_map& map)
 {
     auto first = true;
     std::ostringstream query;
-    for (const auto& term: map)
+    for (const auto& term : map)
     {
         if (!first)
             query << '&';

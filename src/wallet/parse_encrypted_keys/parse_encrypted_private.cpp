@@ -31,10 +31,8 @@ namespace libbitcoin {
 namespace wallet {
 
 const byte_array<parse_encrypted_private::magic_size>
-parse_encrypted_private::magic_
-{
-    { 0x01 }
-};
+    parse_encrypted_private::magic_{
+        {0x01}};
 
 byte_array<parse_encrypted_private::prefix_size>
 parse_encrypted_private::prefix_factory(uint8_t address, bool multiplied)
@@ -45,7 +43,7 @@ parse_encrypted_private::prefix_factory(uint8_t address, bool multiplied)
 }
 
 parse_encrypted_private::parse_encrypted_private(const encrypted_private& key)
-    : parse_encrypted_key<prefix_size>(
+  : parse_encrypted_key<prefix_size>(
         slice<0, 2>(key),
         slice<2, 3>(key),
         slice<3, 7>(key),

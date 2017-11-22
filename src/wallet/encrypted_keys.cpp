@@ -67,14 +67,14 @@ static bool address_salt(ek_salt& salt, const payment_address& address)
 static bool address_salt(ek_salt& salt, const ec_compressed& point,
     uint8_t version, bool compressed)
 {
-    payment_address address({ point, compressed }, version);
+    payment_address address({point, compressed}, version);
     return address ? address_salt(salt, address) : false;
 }
 
 static bool address_salt(ek_salt& salt, const ec_secret& secret,
     uint8_t version, bool compressed)
 {
-    payment_address address({ secret, version, compressed });
+    payment_address address({secret, version, compressed});
     return address ? address_salt(salt, address) : false;
 }
 
@@ -88,14 +88,14 @@ static bool address_validate(const ek_salt& salt,
 static bool address_validate(const ek_salt& salt, const ec_compressed& point,
     uint8_t version, bool compressed)
 {
-    payment_address address({ point, compressed }, version);
+    payment_address address({point, compressed}, version);
     return address ? address_validate(salt, address) : false;
 }
 
 static bool address_validate(const ek_salt& salt, const ec_secret& secret,
     uint8_t version, bool compressed)
 {
-    payment_address address({ secret, version, compressed });
+    payment_address address({secret, version, compressed});
     return address ? address_validate(salt, address) : false;
 }
 
@@ -191,14 +191,12 @@ static void create_private_key(encrypted_private& out_private,
     const auto quarter1 = slice<0, quarter>(encrypt1);
 
     build_checked_array(out_private,
-    {
-        prefix,
-        flags,
-        salt,
-        entropy,
-        quarter1,
-        encrypt2
-    });
+        {prefix,
+            flags,
+            salt,
+            entropy,
+            quarter1,
+            encrypt2});
 }
 
 static bool create_public_key(encrypted_public& out_public,
@@ -221,15 +219,13 @@ static bool create_public_key(encrypted_public& out_public,
 
     const auto sign = point_sign(point.front(), derived2);
     return build_checked_array(out_public,
-    {
-        prefix,
-        flags,
-        salt,
-        entropy,
-        sign,
-        encrypted1,
-        encrypted2
-    });
+        {prefix,
+            flags,
+            salt,
+            entropy,
+            sign,
+            encrypted1,
+            encrypted2});
 }
 
 // There is no scenario requiring a public key, we support it for completeness.
@@ -257,7 +253,7 @@ bool create_key_pair(encrypted_private& out_private,
     const auto flags = set_flags(compressed, parse.lot_sequence(), true);
 
     if (!create_public_key(out_public, flags, salt, parse.entropy(),
-        derived.left, derived.right, factor, version))
+            derived.left, derived.right, factor, version))
         return false;
 
     create_private_key(out_private, flags, salt, parse.entropy(), derived.left,
@@ -293,7 +289,7 @@ static bool create_token(encrypted_token& out_token,
     const byte_array<parse_encrypted_token::prefix_size>& prefix)
 {
     BITCOIN_ASSERT(owner_salt.size() == ek_salt_size ||
-        owner_salt.size() == ek_entropy_size);
+                   owner_salt.size() == ek_entropy_size);
 
     const auto lot_sequence = owner_salt.size() == ek_salt_size;
     auto factor = scrypt_token(normal(passphrase), owner_salt);
@@ -306,11 +302,9 @@ static bool create_token(encrypted_token& out_token,
         return false;
 
     return build_checked_array(out_token,
-    {
-        prefix,
-        owner_entropy,
-        point
-    });
+        {prefix,
+            owner_entropy,
+            point});
 }
 
 // The salt here is owner-supplied random bits, not the address hash.
@@ -360,13 +354,11 @@ bool encrypt(encrypted_private& out_private, const ec_secret& secret,
     aes256_encrypt(derived.right, encrypted2);
 
     return build_checked_array(out_private,
-    {
-        prefix,
-        set_flags(compressed),
-        salt,
-        encrypted1,
-        encrypted2
-    });
+        {prefix,
+            set_flags(compressed),
+            salt,
+            encrypted1,
+            encrypted2});
 }
 
 // decrypt private_key
@@ -440,9 +432,7 @@ bool decrypt(ec_secret& out_secret, uint8_t& out_version, bool& out_compressed,
     if (!parse.valid())
         return false;
 
-    const auto success = parse.multiplied() ?
-        decrypt_multiplied(out_secret, parse, passphrase) :
-        decrypt_secret(out_secret, parse, passphrase);
+    const auto success = parse.multiplied() ? decrypt_multiplied(out_secret, parse, passphrase) : decrypt_secret(out_secret, parse, passphrase);
 
     if (success)
     {
