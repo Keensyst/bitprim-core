@@ -66,28 +66,11 @@ header::header(header const& other)
 {}
 
 // TODO: implement safe private accessor for conditional cache transfer.
-//header::header(header&& other)
-//    : header(other.version_, other.previous_block_hash_, other.merkle_, other.timestamp_, other.bits_, other.nonce_)
-//    , validation(std::move(other.validation))
-//{}
-
 header::header(header const& other, hash_digest const& hash)
-//    : header(other.version_, other.previous_block_hash_, other.merkle_, other.timestamp_, other.bits_, other.nonce_)
     : header(other)
 {
     hash_ = std::make_shared<hash_digest>(hash);    //TODO(fernando): replace shared_ptr with xxx::optional
-//    validation = other.validation;
 }
-
-//header::header(header&& other, hash_digest&& hash)
-//  : header(other.version_, other.previous_block_hash_, other.merkle_, other.timestamp_, other.bits_, other.nonce_)
-//{
-//    hash_ = std::make_shared<hash_digest>(hash);
-//    validation = other.validation;
-//}
-
-
-
 
 // Operators.
 //-----------------------------------------------------------------------------
@@ -103,18 +86,6 @@ header& header::operator=(header const& other) {
     validation = other.validation;
     return *this;
 }
-
-//header& header::operator=(header&& other) {
-//    // TODO: implement safe private accessor for conditional cache transfer.
-//    version_ = other.version_;
-//    previous_block_hash_ = other.previous_block_hash_;
-//    merkle_ = other.merkle_;
-//    timestamp_ = other.timestamp_;
-//    bits_ = other.bits_;
-//    nonce_ = other.nonce_;
-//    validation = other.validation;
-//    return *this;
-//}
 
 bool operator==(header const& x, header const& y) {
     return (x.version_ == y.version_)
@@ -173,11 +144,13 @@ bool header::from_data(reader& source, bool wire) {
     bits_ = source.read_4_bytes_little_endian();
     nonce_ = source.read_4_bytes_little_endian();
 
-    if (!wire)
+    if ( ! wire) {
         validation.median_time_past = source.read_4_bytes_little_endian();
+    }
 
-    if (!source)
+    if ( ! source) {
         reset();
+    }
 
     return source;
 }
@@ -207,7 +180,7 @@ bool header::is_valid() const {
 
 data_chunk header::to_data(bool wire) const {
     data_chunk data;
-    const auto size = serialized_size(wire);
+    auto const size = serialized_size(wire);
     data.reserve(size);
     data_sink ostream(data);
     to_data(ostream, wire);
@@ -229,8 +202,9 @@ void header::to_data(writer& sink, bool wire) const {
     sink.write_4_bytes_little_endian(bits_);
     sink.write_4_bytes_little_endian(nonce_);
 
-    if (!wire)
+    if ( ! wire) {
         sink.write_4_bytes_little_endian(validation.median_time_past);
+    }
 }
 
 // Size.
@@ -324,8 +298,7 @@ void header::invalidate_cache() const {
     // Critical Section
     mutex_.lock_upgrade();
 
-    if (hash_)
-    {
+    if (hash_) {
         mutex_.unlock_upgrade_and_lock();
         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         hash_.reset();
@@ -342,8 +315,7 @@ hash_digest header::hash() const {
     // Critical Section
     mutex_.lock_upgrade();
 
-    if (!hash_)
-    {
+    if ( ! hash_) {
         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         mutex_.unlock_upgrade_and_lock();
         hash_ = std::make_shared<hash_digest>(bitcoin_hash(to_data()));
@@ -351,7 +323,7 @@ hash_digest header::hash() const {
         //---------------------------------------------------------------------
     }
 
-    const auto hash = *hash_;
+    auto const hash = *hash_;
     mutex_.unlock_upgrade();
     ///////////////////////////////////////////////////////////////////////////
 
@@ -359,8 +331,7 @@ hash_digest header::hash() const {
 }
 
 #ifdef LITECOIN
-hash_digest header::litecoin_proof_of_work_hash() const
-{
+hash_digest header::litecoin_proof_of_work_hash() const {
     return litecoin_hash(to_data());
 }
 #endif //LITECOIN
@@ -371,9 +342,9 @@ hash_digest header::litecoin_proof_of_work_hash() const
 /// BUGBUG: bitcoin 32bit unix time: en.wikipedia.org/wiki/Year_2038_problem
 bool header::is_valid_timestamp() const {
     using namespace std::chrono;
-    static const auto two_hours = seconds(timestamp_future_seconds);
-    const auto time = wall_clock::from_time_t(timestamp_);
-    const auto future = wall_clock::now() + two_hours;
+    static auto const two_hours = seconds(timestamp_future_seconds);
+    auto const time = wall_clock::from_time_t(timestamp_);
+    auto const future = wall_clock::now() + two_hours;
     return time <= future;
 }
 
@@ -382,8 +353,7 @@ bool header::is_valid_proof_of_work() const {
     // TODO: This should be statically-initialized (optimization).
     static const uint256_t pow_limit(compact{ proof_of_work_limit });
 
-
-    const auto bits = compact(bits_);
+    auto const bits = compact(bits_);
 
     if (bits.is_overflowed())
         return false;
@@ -416,7 +386,7 @@ code header::check() const {
         return error::success;
 }
 
-code header::accept(const chain_state& state) const {
+code header::accept(chain_state const& state) const {
     if (bits_ != state.work_required())
         return error::incorrect_proof_of_work;
 
