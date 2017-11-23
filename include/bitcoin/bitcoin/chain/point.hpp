@@ -16,14 +16,15 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LIBBITCOIN_CHAIN_POINT_HPP
-#define LIBBITCOIN_CHAIN_POINT_HPP
+#ifndef LIBBITCOIN_CHAIN_POINT_HPP_
+#define LIBBITCOIN_CHAIN_POINT_HPP_
 
 #include <cstdint>
 #include <istream>
 #include <string>
 #include <vector>
 #include <boost/functional/hash.hpp>
+#include <bitcoin/bitcoin/constants.hpp>
 #include <bitcoin/bitcoin/define.hpp>
 #include <bitcoin/bitcoin/chain/point_iterator.hpp>
 #include <bitcoin/bitcoin/math/hash.hpp>
@@ -34,57 +35,85 @@
 namespace libbitcoin {
 namespace chain {
 
-class BC_API point
-{
+// Models TotallyOrdered
+class BC_API point {
 public:
+
     /// This is a sentinel used in .index to indicate no output, e.g. coinbase.
     /// This value is serialized and defined by consensus, not implementation.
-    static const uint32_t null_index;
+    /// This sentinel is serialized and defined by consensus, not implementation.
+    static BC_CONSTEXPR uint32_t null_index = no_previous_output;
 
-    typedef std::vector<point> list;
-    typedef std::vector<uint32_t> indexes;
+    static BC_CONSTEXPR uint32_t invalid_index = null_index - uint32_t(1);
 
-    // Constructors.
-    //-------------------------------------------------------------------------
+    using list = std::vector<point>;
+    using indexes = std::vector<uint32_t>;
 
+    // Models SemiRegular
     point();
 
-    point(point&& other);
-    point(const point& other);
+    point(hash_digest const& hash, uint32_t index);
 
-    point(hash_digest&& hash, uint32_t index);
-    point(const hash_digest& hash, uint32_t index);
+    // Models Regular
+    friend
+    bool operator==(point const& x, point const& y) {
+        return x.index_ == y.index_ && x.hash_ == y.hash_;
+    }
 
-    // Operators.
-    //-------------------------------------------------------------------------
+    friend
+    bool operator!=(point const& x, point const& y) {
+        return !(x == y);
+    }
 
-    /// This class is move assignable and copy assignable.
-    point& operator=(point&& other);
-    point& operator=(const point& other);
+    // Models TotallyOrdered
+    // This arbitrary order is produced to support set uniqueness determinations.
+    friend
+    bool operator<(point const& x, point const& y) {
+        // The index is primary only because its comparisons are simpler.
+        return x.index_ == y.index_ ? x.hash_ < y.hash_ :
+               x.index_ < y.index_;
+    }
 
-    bool operator<(const point& other) const;
-    bool operator==(const point& other) const;
-    bool operator!=(const point& other) const;
+    friend
+    bool operator>(point const& x, point const& y) {
+        return (y < x);
+    }
 
-    // Deserialization.
-    //-------------------------------------------------------------------------
+    friend
+    bool operator<=(point const& x, point const& y) {
+        return !(y < x);
+    }
 
-    static point factory_from_data(const data_chunk& data, bool wire=true);
-    static point factory_from_data(std::istream& stream, bool wire=true);
-    static point factory_from_data(reader& source, bool wire=true);
+    friend
+    bool operator>=(point const& x, point const& y) {
+        return !(x < y);
+    }
 
-    bool from_data(const data_chunk& data, bool wire=true);
-    bool from_data(std::istream& stream, bool wire=true);
-    bool from_data(reader& source, bool wire=true);
+    // Attributes -------------------------------------------------------------
+    static
+    size_t satoshi_fixed_size();
 
+    size_t serialized_size(bool wire = true) const;
+
+    // deprecated (unsafe)
+    hash_digest& hash();
+
+    hash_digest const& hash() const;
+//    void set_hash(hash_digest const& value);
+
+    uint32_t index() const;
+//    void set_index(uint32_t value);
+
+    void set(hash_digest const& hash, uint32_t index);
+
+
+    bool is_null() const;
     bool is_valid() const;
 
-    // Serialization.
-    //-------------------------------------------------------------------------
+    // Utilities --------------------------------------------------------------
 
-    data_chunk to_data(bool wire=true) const;
-    void to_data(std::ostream& stream, bool wire=true) const;
-    void to_data(writer& sink, bool wire=true) const;
+    /// This is for client-server, not related to consensus or p2p networking.
+    uint64_t checksum() const;
 
     // Iteration (limited to store serialization).
     //-------------------------------------------------------------------------
@@ -92,42 +121,31 @@ public:
     point_iterator begin() const;
     point_iterator end() const;
 
-    // Properties (size, accessors, cache).
-    //-------------------------------------------------------------------------
 
-    static size_t satoshi_fixed_size();
-    size_t serialized_size(bool wire=true) const;
+    // Serialization / Deserialization  ---------------------------------------
 
-    // deprecated (unsafe)
-    hash_digest& hash();
+    data_chunk to_data(bool wire = true) const;
+    void to_data(std::ostream& stream, bool wire = true) const;
+    void to_data(writer& sink, bool wire = true) const;
 
-    const hash_digest& hash() const;
-    void set_hash(hash_digest&& value);
-    void set_hash(const hash_digest& value);
+    static
+    point factory_from_data(const data_chunk& data, bool wire = true);
+    static
+    point factory_from_data(std::istream& stream, bool wire = true);
+    static
+    point factory_from_data(reader& source, bool wire = true);
 
-    uint32_t index() const;
-    void set_index(uint32_t value);
-
-    // Utilities.
-    //-------------------------------------------------------------------------
-
-    /// This is for client-server, not related to consensus or p2p networking.
-    uint64_t checksum() const;
-
-    // Validation.
-    //-------------------------------------------------------------------------
-
-    bool is_null() const;
+    bool from_data(const data_chunk& data, bool wire = true);
+    bool from_data(std::istream& stream, bool wire = true);
+    bool from_data(reader& source, bool wire = true);
 
 protected:
-    point(hash_digest&& hash, uint32_t index, bool valid);
-    point(const hash_digest& hash, uint32_t index, bool valid);
+    point(hash_digest const& hash, uint32_t index, bool valid);
     void reset();
 
 private:
     hash_digest hash_;
     uint32_t index_;
-    bool valid_;
 };
 
 } // namespace chain
@@ -144,8 +162,7 @@ namespace std
 template <>
 struct hash<bc::chain::point>
 {
-    size_t operator()(const bc::chain::point& point) const
-    {
+    size_t operator()(const bc::chain::point& point) const {
         size_t seed = 0;
         boost::hash_combine(seed, point.hash());
         boost::hash_combine(seed, point.index());
@@ -160,12 +177,11 @@ struct tuple_size<bc::chain::point>
     static const auto value = std::tuple_size<bc::hash_digest>::value +
         sizeof(uint16_t);
 
-    operator std::size_t() const
-    {
+    operator std::size_t() const {
         return value;
     }
 };
 
 } // namespace std
 
-#endif
+#endif /* LIBBITCOIN_CHAIN_POINT_HPP_ */

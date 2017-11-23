@@ -684,14 +684,12 @@ point::list transaction::previous_outputs() const
     return prevouts;
 }
 
-point::list transaction::missing_previous_outputs() const
-{
+point::list transaction::missing_previous_outputs() const {
     point::list prevouts;
 
-    for (auto& input: inputs_)
-    {
-        const auto& prevout = input.previous_output();
-        const auto missing = !prevout.validation.cache.is_valid();
+    for (auto& input: inputs_) {
+        auto const& prevout = input.previous_output();
+        auto const missing = !prevout.validation.cache.is_valid();
 
         if (missing && !prevout.is_null())
             prevouts.push_back(prevout);
@@ -704,7 +702,10 @@ hash_list transaction::missing_previous_transactions() const
 {
     const auto points = missing_previous_outputs();
     hash_list hashes(points.size());
-    const auto hasher = [](const output_point& point) { return point.hash(); };
+
+//    const auto hasher = [](output_point const& point) { return point.hash(); };
+    const auto hasher = [](point const& point) { return point.hash(); };
+
     std::transform(points.begin(), points.end(), hashes.begin(), hasher);
     return distinct(hashes);
 }

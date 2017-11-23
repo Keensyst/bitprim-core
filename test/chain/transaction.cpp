@@ -694,8 +694,9 @@ BOOST_AUTO_TEST_CASE(transaction__is_oversized_coinbase__script_size_below_min__
 {
     chain::transaction instance;
     instance.inputs().emplace_back();
-    instance.inputs().back().previous_output().set_index(chain::point::null_index);
-    instance.inputs().back().previous_output().set_hash(null_hash);
+//    instance.inputs().back().previous_output().set_index(chain::point::null_index);
+//    instance.inputs().back().previous_output().set_hash(null_hash);
+    instance.inputs().back().previous_output().set(null_hash, chain::point::null_index);
     BOOST_REQUIRE(instance.is_coinbase());
     BOOST_REQUIRE(instance.inputs().back().script().serialized_size(false) < min_coinbase_size);
     BOOST_REQUIRE(instance.is_oversized_coinbase());
@@ -706,8 +707,11 @@ BOOST_AUTO_TEST_CASE(transaction__is_oversized_coinbase__script_size_above_max__
     chain::transaction instance;
     auto& inputs = instance.inputs();
     inputs.emplace_back();
-    inputs.back().previous_output().set_index(chain::point::null_index);
-    inputs.back().previous_output().set_hash(null_hash);
+
+//    inputs.back().previous_output().set_index(chain::point::null_index);
+//    inputs.back().previous_output().set_hash(null_hash);
+    inputs.back().previous_output().set(null_hash, chain::point::null_index);
+
     BOOST_REQUIRE(inputs.back().script().from_data(data_chunk(max_coinbase_size + 10), false));
     BOOST_REQUIRE(instance.is_coinbase());
     BOOST_REQUIRE(inputs.back().script().serialized_size(false) > max_coinbase_size);
@@ -719,8 +723,11 @@ BOOST_AUTO_TEST_CASE(transaction__is_oversized_coinbase__script_size_within_boun
     chain::transaction instance;
     auto& inputs = instance.inputs();
     inputs.emplace_back();
-    inputs.back().previous_output().set_index(chain::point::null_index);
-    inputs.back().previous_output().set_hash(null_hash);
+
+//    inputs.back().previous_output().set_index(chain::point::null_index);
+//    inputs.back().previous_output().set_hash(null_hash);
+    inputs.back().previous_output().set(null_hash, chain::point::null_index);
+
     BOOST_REQUIRE(inputs.back().script().from_data(data_chunk(50), false));
     BOOST_REQUIRE(instance.is_coinbase());
     BOOST_REQUIRE(inputs.back().script().serialized_size(false) >= min_coinbase_size);
@@ -749,8 +756,9 @@ BOOST_AUTO_TEST_CASE(transaction__is_null_non_coinbase__null_input_prevout__retu
     auto& inputs = instance.inputs();
     inputs.emplace_back();
     inputs.emplace_back();
-    inputs.back().previous_output().set_index(chain::point::null_index);
-    inputs.back().previous_output().set_hash(null_hash);
+//    inputs.back().previous_output().set_index(chain::point::null_index);
+//    inputs.back().previous_output().set_hash(null_hash);
+    inputs.back().previous_output().set(null_hash, chain::point::null_index);
     BOOST_REQUIRE(!instance.is_coinbase());
     BOOST_REQUIRE(instance.inputs().back().previous_output().is_null());
     BOOST_REQUIRE(instance.is_null_non_coinbase());

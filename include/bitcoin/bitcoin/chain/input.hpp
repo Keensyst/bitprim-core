@@ -38,39 +38,43 @@ namespace chain {
 class BC_API input
 {
 public:
-    typedef std::vector<input> list;
+    using list = std::vector<input>;
 
     // Constructors.
     //-----------------------------------------------------------------------------
 
     input();
 
-    input(input&& other);
-    input(const input& other);
+    input(input const& other);
+    input(input&& other) noexcept;
 
-    input(output_point&& previous_output, chain::script&& script,
-        uint32_t sequence);
-    input(const output_point& previous_output, const chain::script& script,
-        uint32_t sequence);
+    input(output_point&& previous_output, chain::script&& script, uint32_t sequence);
+    input(output_point const& previous_output, chain::script const& script, uint32_t sequence);
 
     // Operators.
     //-----------------------------------------------------------------------------
 
     /// This class is move assignable and copy assignable.
+    input& operator=(input const& other);
     input& operator=(input&& other);
-    input& operator=(const input& other);
 
-    bool operator==(const input& other) const;
-    bool operator!=(const input& other) const;
+    friend
+    bool operator==(input const&, input const&);
+
+    friend
+    bool operator!=(input const&, input const&);
 
     // Deserialization.
     //-----------------------------------------------------------------------------
 
-    static input factory_from_data(const data_chunk& data, bool wire=true);
-    static input factory_from_data(std::istream& stream, bool wire=true);
-    static input factory_from_data(reader& source, bool wire=true);
+    static
+    input factory_from_data(data_chunk const& data, bool wire=true);
+    static
+    input factory_from_data(std::istream& stream, bool wire=true);
+    static
+    input factory_from_data(reader& source, bool wire=true);
 
-    bool from_data(const data_chunk& data, bool wire=true);
+    bool from_data(data_chunk const& data, bool wire=true);
     bool from_data(std::istream& stream, bool wire=true);
     bool from_data(reader& source, bool wire=true);
 
@@ -79,27 +83,27 @@ public:
     // Serialization.
     //-----------------------------------------------------------------------------
 
-    data_chunk to_data(bool wire=true) const;
-    void to_data(std::ostream& stream, bool wire=true) const;
-    void to_data(writer& sink, bool wire=true) const;
+    data_chunk to_data(bool wire = true) const;
+    void to_data(std::ostream& stream, bool wire = true) const;
+    void to_data(writer& sink, bool wire = true) const;
 
     // Properties (size, accessors, cache).
     //-----------------------------------------------------------------------------
 
-    size_t serialized_size(bool wire=true) const;
+    size_t serialized_size(bool wire = true) const;
 
     // Deprecated (unsafe).
     output_point& previous_output();
 
     const output_point& previous_output() const;
-    void set_previous_output(const output_point& value);
+    void set_previous_output(output_point const& value);
     void set_previous_output(output_point&& value);
 
     // Deprecated (unsafe).
     chain::script& script();
 
     const chain::script& script() const;
-    void set_script(const chain::script& value);
+    void set_script(chain::script const& value);
     void set_script(chain::script&& value);
 
     uint32_t sequence() const;

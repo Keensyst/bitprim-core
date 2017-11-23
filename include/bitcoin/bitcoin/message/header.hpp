@@ -19,8 +19,8 @@
 #ifndef LIBBITCOIN_MESSAGE_HEADER_MESSAGE_HPP
 #define LIBBITCOIN_MESSAGE_HEADER_MESSAGE_HPP
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <istream>
 #include <memory>
 #include <bitcoin/bitcoin/chain/header.hpp>
@@ -32,34 +32,56 @@
 namespace libbitcoin {
 namespace message {
 
+//Note(fernando): I don't know what is the purpose of this class
 class BC_API header
-  : public chain::header
+    : public chain::header
 {
 public:
-    typedef std::vector<header> list;
-    typedef std::shared_ptr<header> ptr;
-    typedef std::shared_ptr<const header> const_ptr;
-    typedef std::vector<ptr> ptr_list;
-    typedef std::vector<const_ptr> const_ptr_list;
-
-    static header factory_from_data(uint32_t version, const data_chunk& data);
-    static header factory_from_data(uint32_t version, std::istream& stream);
-    static header factory_from_data(uint32_t version, reader& source);
-    static size_t satoshi_fixed_size(uint32_t version);
+    using list = std::vector<header>;
+    using ptr = std::shared_ptr<header>;
+    using const_ptr = std::shared_ptr<const header>;
+    using ptr_list = std::vector<ptr>;
+    using const_ptr_list = std::vector<const_ptr>;
 
     header();
-    header(uint32_t version, const hash_digest& previous_block_hash,
-        const hash_digest& merkle, uint32_t timestamp, uint32_t bits,
+    header(uint32_t version, hash_digest const& previous_block_hash,
+        hash_digest const& merkle, uint32_t timestamp, uint32_t bits,
         uint32_t nonce);
-    header(uint32_t version, hash_digest&& previous_block_hash,
-        hash_digest&& merkle, uint32_t timestamp, uint32_t bits,
-        uint32_t nonce);
-    header(const chain::header& other);
-    header(chain::header&& other);
-    header(const header& other);
-    header(header&& other);
 
-    bool from_data(uint32_t version, const data_chunk& data);
+    // header(uint32_t version, hash_digest&& previous_block_hash,
+    //     hash_digest&& merkle, uint32_t timestamp, uint32_t bits,
+    //     uint32_t nonce);
+
+    header(header const& other);
+    // header(header&& other);
+    header(chain::header const& other);
+    // header(chain::header&& other);
+
+   
+    /// This class is move assignable but not copy assignable. //Note(fernando): ????
+    header& operator=(header const&) /*= delete*/;
+    // header& operator=(header&& other);
+
+    header& operator=(chain::header const& other);
+    // header& operator=(chain::header&& other);
+
+
+    // bool operator==(const chain::header& other) const;
+    // bool operator!=(const chain::header& other) const;
+    // bool operator==(const header& other) const;
+    // bool operator!=(const header& other) const;
+
+    friend
+    bool operator==(header const& x, chain::header const& y);
+    friend
+    bool operator!=(header const& x, chain::header const& y);
+    friend
+    bool operator==(header const& x, header const& y);
+    friend
+    bool operator!=(chain::header const& x, chain::header const& y);
+
+
+    bool from_data(uint32_t version, data_chunk const& data);
     bool from_data(uint32_t version, std::istream& stream);
     bool from_data(uint32_t version, reader& source);
     data_chunk to_data(uint32_t version) const;
@@ -68,21 +90,30 @@ public:
     void reset();
     size_t serialized_size(uint32_t version) const;
 
-    header& operator=(chain::header&& other);
 
-    /// This class is move assignable but not copy assignable.
-    header& operator=(header&& other);
-    header& operator=(const header&) /*= delete*/;
+    static 
+    header factory_from_data(uint32_t version, data_chunk const& data);
+    
+    static 
+    header factory_from_data(uint32_t version, std::istream& stream);
+    
+    static 
+    header factory_from_data(uint32_t version, reader& source);
+    
+    static 
+    size_t satoshi_fixed_size(uint32_t version);
 
-    bool operator==(const chain::header& other) const;
-    bool operator!=(const chain::header& other) const;
 
-    bool operator==(const header& other) const;
-    bool operator!=(const header& other) const;
 
-    static const std::string command;
-    static const uint32_t version_minimum;
-    static const uint32_t version_maximum;
+
+    static 
+    std::string const command;
+    
+    static 
+    uint32_t const version_minimum;
+    
+    static 
+    uint32_t const version_maximum;
 };
 
 } // namespace message

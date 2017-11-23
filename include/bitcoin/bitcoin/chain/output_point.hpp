@@ -36,8 +36,7 @@ class BC_API output_point
 public:
 
     // THIS IS FOR LIBRARY USE ONLY, DO NOT CREATE A DEPENDENCY ON IT.
-    struct validation_type
-    {
+    struct validation_type {
         /// An output is spent if a valid transaction has a valid claim on it.
         /// When validating blocks only long chain blocks can have a claim.
         /// When validating memory pool tx another mempool tx can have a claim.
@@ -63,37 +62,55 @@ public:
     // Constructors.
     //-------------------------------------------------------------------------
 
-    output_point();
+    output_point() = default;
 
-    output_point(point&& other);
-    output_point(const point& value);
+    // implicit convertion
+    output_point(point const&);
 
-    output_point(output_point&& other);
-    output_point(const output_point& other);
+    output_point(output_point const&) = default;
+//    output_point(output_point&&) noexcept;
+    output_point(output_point&&) = default;
 
-    output_point(hash_digest&& hash, uint32_t index);
-    output_point(const hash_digest& hash, uint32_t index);
+    output_point(hash_digest const& hash, uint32_t index);
+
 
     // Operators.
     //-------------------------------------------------------------------------
+
+    output_point& operator=(point const&);
+
     // This class is move assignable and copy assignable.
+    output_point& operator=(output_point const&) = default;
+//    output_point& operator=(output_point&&) noexcept;
+    output_point& operator=(output_point&&) = default;
 
-    output_point& operator=(point&& other);
-    output_point& operator=(const point&);
-    output_point& operator=(output_point&& other);
-    output_point& operator=(const output_point&);
+//    friend
+//    bool operator==(output_point const&, point const&);
+//
+//    friend
+//    bool operator==(point const&, output_point const&);
+//
+//    friend
+//    bool operator!=(output_point const&, point const&);
+//
+//    friend
+//    bool operator!=(point const&, output_point const&);
 
-    bool operator==(const point& other) const;
-    bool operator!=(const point& other) const;
-    bool operator==(const output_point& other) const;
-    bool operator!=(const output_point& other) const;
+//    friend
+//    bool operator==(output_point const&, output_point const&);
+//
+//    friend
+//    bool operator!=(output_point const&, output_point const&);
 
     // Deserialization.
     //-------------------------------------------------------------------------
 
-    static output_point factory_from_data(const data_chunk& data, bool wire=true);
-    static output_point factory_from_data(std::istream& stream, bool wire=true);
-    static output_point factory_from_data(reader& source, bool wire=true);
+    static
+    output_point factory_from_data(data_chunk const& data, bool wire = true);
+    static
+    output_point factory_from_data(std::istream& stream, bool wire = true);
+    static
+    output_point factory_from_data(reader& source, bool wire = true);
 
     // Validation.
     //-------------------------------------------------------------------------

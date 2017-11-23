@@ -36,102 +36,83 @@ using namespace bc::wallet;
 
 input::input()
   : previous_output_{}, sequence_(0)
-{
-}
+{}
 
-input::input(input&& other)
-  : input(std::move(other.previous_output_), std::move(other.script_),
-      other.sequence_)
-{
-}
+input::input(input const& other)
+    : input(other.previous_output_, other.script_, other.sequence_)
+{}
 
-input::input(const input& other)
-  : input(other.previous_output_, other.script_, other.sequence_)
-{
-}
+input::input(input&& other) noexcept
+    : input(std::move(other.previous_output_), std::move(other.script_), other.sequence_)
+{}
 
-input::input(output_point&& previous_output, chain::script&& script,
-    uint32_t sequence)
-  : previous_output_(std::move(previous_output)), script_(std::move(script)),
-    sequence_(sequence)
-{
-}
+input::input(output_point const& previous_output, chain::script const& script, uint32_t sequence)
+    : previous_output_(previous_output), script_(script), sequence_(sequence)
+{}
 
-input::input(const output_point& previous_output, const chain::script& script,
-    uint32_t sequence)
-  : previous_output_(previous_output), script_(script), sequence_(sequence)
-{
-}
+input::input(output_point&& previous_output, chain::script&& script, uint32_t sequence)
+    : previous_output_(std::move(previous_output)), script_(std::move(script)), sequence_(sequence)
+{}
 
 // Operators.
 //-----------------------------------------------------------------------------
 
-input& input::operator=(input&& other)
-{
-    previous_output_ = std::move(other.previous_output_);
-    script_ = std::move(other.script_);
-    sequence_ = other.sequence_;
-    return *this;
-}
-
-input& input::operator=(const input& other)
-{
+input& input::operator=(const input& other) {
     previous_output_ = other.previous_output_;
     script_ = other.script_;
     sequence_ = other.sequence_;
     return *this;
 }
 
-bool input::operator==(const input& other) const
-{
-    return (sequence_ == other.sequence_)
-        && (previous_output_ == other.previous_output_)
-        && (script_ == other.script_);
+input& input::operator=(input&& other) {
+    previous_output_ = std::move(other.previous_output_);
+    script_ = std::move(other.script_);
+    sequence_ = other.sequence_;
+    return *this;
 }
 
-bool input::operator!=(const input& other) const
-{
-    return !(*this == other);
+bool operator==(input const& x, input const& y) {
+    return (x.sequence_ == y.sequence_)
+        && (x.previous_output_ == y.previous_output_)
+        && (x.script_ == y.script_);
+}
+
+bool operator!=(input const& x, input const& y) {
+    return !(x == y);
 }
 
 // Deserialization.
 //-----------------------------------------------------------------------------
 
-input input::factory_from_data(const data_chunk& data, bool wire)
-{
+input input::factory_from_data(const data_chunk& data, bool wire) {
     input instance;
     instance.from_data(data, wire);
     return instance;
 }
 
-input input::factory_from_data(std::istream& stream, bool wire)
-{
+input input::factory_from_data(std::istream& stream, bool wire) {
     input instance;
     instance.from_data(stream, wire);
     return instance;
 }
 
-input input::factory_from_data(reader& source, bool wire)
-{
+input input::factory_from_data(reader& source, bool wire) {
     input instance;
     instance.from_data(source, wire);
     return instance;
 }
 
-bool input::from_data(const data_chunk& data, bool wire)
-{
+bool input::from_data(const data_chunk& data, bool wire) {
     data_source istream(data);
     return from_data(istream, wire);
 }
 
-bool input::from_data(std::istream& stream, bool wire)
-{
+bool input::from_data(std::istream& stream, bool wire) {
     istream_reader source(stream);
     return from_data(source, wire);
 }
 
-bool input::from_data(reader& source, bool wire)
-{
+bool input::from_data(reader& source, bool wire) {
     reset();
 
     if (!previous_output_.from_data(source, wire))
@@ -146,24 +127,21 @@ bool input::from_data(reader& source, bool wire)
     return source;
 }
 
-void input::reset()
-{
+void input::reset() {
     previous_output_.reset();
     script_.reset();
     sequence_ = 0;
 }
 
 // Since empty script and zero sequence are valid this relies on the prevout.
-bool input::is_valid() const
-{
+bool input::is_valid() const {
     return sequence_ != 0 || previous_output_.is_valid() || script_.is_valid();
 }
 
 // Serialization.
 //-----------------------------------------------------------------------------
 
-data_chunk input::to_data(bool wire) const
-{
+data_chunk input::to_data(bool wire) const {
     data_chunk data;
     const auto size = serialized_size(wire);
     data.reserve(size);
@@ -174,14 +152,12 @@ data_chunk input::to_data(bool wire) const
     return data;
 }
 
-void input::to_data(std::ostream& stream, bool wire) const
-{
+void input::to_data(std::ostream& stream, bool wire) const {
     ostream_writer sink(stream);
     to_data(sink, wire);
 }
 
-void input::to_data(writer& sink, bool wire) const
-{
+void input::to_data(writer& sink, bool wire) const {
     previous_output_.to_data(sink, wire);
     script_.to_data(sink, true);
     sink.write_4_bytes_little_endian(sequence_);
@@ -190,8 +166,7 @@ void input::to_data(writer& sink, bool wire) const
 // Size.
 //-----------------------------------------------------------------------------
 
-size_t input::serialized_size(bool wire) const
-{
+size_t input::serialized_size(bool wire) const {
     return previous_output_.serialized_size(wire) +
         script_.serialized_size(true) + sizeof(sequence_);
 }
@@ -199,61 +174,50 @@ size_t input::serialized_size(bool wire) const
 // Accessors.
 //-----------------------------------------------------------------------------
 
-output_point& input::previous_output()
-{
+output_point& input::previous_output() {
     return previous_output_;
 }
 
-const output_point& input::previous_output() const
-{
+const output_point& input::previous_output() const {
     return previous_output_;
 }
 
-void input::set_previous_output(const output_point& value)
-{
+void input::set_previous_output(output_point const& value) {
     previous_output_ = value;
 }
 
-void input::set_previous_output(output_point&& value)
-{
+void input::set_previous_output(output_point&& value) {
     previous_output_ = std::move(value);
 }
 
-chain::script& input::script()
-{
+chain::script& input::script() {
     return script_;
 }
 
-const chain::script& input::script() const
-{
+const chain::script& input::script() const {
     return script_;
 }
 
-void input::set_script(const chain::script& value)
-{
+void input::set_script(chain::script const& value) {
     script_ = value;
     invalidate_cache();
 }
 
-void input::set_script(chain::script&& value)
-{
+void input::set_script(chain::script&& value) {
     script_ = std::move(value);
     invalidate_cache();
 }
 
-uint32_t input::sequence() const
-{
+uint32_t input::sequence() const {
     return sequence_;
 }
 
-void input::set_sequence(uint32_t value)
-{
+void input::set_sequence(uint32_t value) {
     sequence_ = value;
 }
 
 // protected
-void input::invalidate_cache() const
-{
+void input::invalidate_cache() const {
     ///////////////////////////////////////////////////////////////////////////
     // Critical Section
     mutex_.lock_upgrade();
@@ -271,8 +235,7 @@ void input::invalidate_cache() const
     ///////////////////////////////////////////////////////////////////////////
 }
 
-payment_address input::address() const
-{
+payment_address input::address() const {
     ///////////////////////////////////////////////////////////////////////////
     // Critical Section
     mutex_.lock_upgrade();
@@ -299,13 +262,11 @@ payment_address input::address() const
 // Validation helpers.
 //-----------------------------------------------------------------------------
 
-bool input::is_final() const
-{
+bool input::is_final() const {
     return sequence_ == max_input_sequence;
 }
 
-bool input::is_locked(size_t block_height, uint32_t median_time_past) const
-{
+bool input::is_locked(size_t block_height, uint32_t median_time_past) const {
     if ((sequence_ & relative_locktime_disabled) != 0)
         return false;
 
@@ -313,8 +274,7 @@ bool input::is_locked(size_t block_height, uint32_t median_time_past) const
     const auto minimum = (sequence_ & relative_locktime_mask);
     const auto& prevout = previous_output_.validation;
 
-    if ((sequence_ & relative_locktime_time_locked) != 0)
-    {
+    if ((sequence_ & relative_locktime_time_locked) != 0) {
         // Median time past must be monotonically-increasing by block.
         BITCOIN_ASSERT(median_time_past >= prevout.median_time_past);
         const auto age_seconds = median_time_past - prevout.median_time_past;
@@ -326,12 +286,10 @@ bool input::is_locked(size_t block_height, uint32_t median_time_past) const
     return age_blocks < minimum;
 }
 
-size_t input::signature_operations(bool bip16_active) const
-{
+size_t input::signature_operations(bool bip16_active) const {
     auto sigops = script_.sigops(false);
 
-    if (bip16_active)
-    {
+    if (bip16_active) {
         // Breaks debug build unit testing.
         ////BITCOIN_ASSERT(previous_output_.is_valid());
 

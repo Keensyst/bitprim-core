@@ -194,37 +194,41 @@ BOOST_AUTO_TEST_CASE(point__factory_from_data_3__roundtrip__success)
     BOOST_REQUIRE(output == raw);
 }
 
-BOOST_AUTO_TEST_CASE(point__hash_setter_1__roundtrip__success)
-{
-    const auto value = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+//BOOST_AUTO_TEST_CASE(point__hash_setter_1__roundtrip__success)
+//{
+//    const auto value = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+//
+//    chain::point instance;
+//    BOOST_REQUIRE(value != instance.hash());
+//    instance.set_hash(value);
+//    BOOST_REQUIRE(value == instance.hash());
+//}
 
+
+//BOOST_AUTO_TEST_CASE(point__index__roundtrip__success)
+//{
+//    uint32_t value = 1254u;
+//    chain::point instance;
+//    BOOST_REQUIRE(value != instance.index());
+//    instance.set_index(value);
+//    BOOST_REQUIRE_EQUAL(value, instance.index());
+//}
+
+BOOST_AUTO_TEST_CASE(point__setter__roundtrip__success)
+{
+    const auto h_value = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    uint32_t i_value = 1254u;
     chain::point instance;
-    BOOST_REQUIRE(value != instance.hash());
-    instance.set_hash(value);
-    BOOST_REQUIRE(value == instance.hash());
+
+    BOOST_REQUIRE(h_value != instance.hash());
+    BOOST_REQUIRE(i_value != instance.index());
+
+    instance.set(h_value, i_value);
+
+    BOOST_REQUIRE(h_value == instance.hash());
+    BOOST_REQUIRE_EQUAL(i_value, instance.index());
 }
 
-BOOST_AUTO_TEST_CASE(point__hash_setter_2__roundtrip__success)
-{
-    const auto value = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
-
-    // This must be non-const.
-    auto dup_value = value;
-
-    chain::point instance;
-    BOOST_REQUIRE(value != instance.hash());
-    instance.set_hash(std::move(dup_value));
-    BOOST_REQUIRE(value == instance.hash());
-}
-
-BOOST_AUTO_TEST_CASE(point__index__roundtrip__success)
-{
-    uint32_t value = 1254u;
-    chain::point instance;
-    BOOST_REQUIRE(value != instance.index());
-    instance.set_index(value);
-    BOOST_REQUIRE_EQUAL(value, instance.index());
-}
 
 BOOST_AUTO_TEST_CASE(point__operator_assign_equals_1__always__matches_equivalent)
 {
