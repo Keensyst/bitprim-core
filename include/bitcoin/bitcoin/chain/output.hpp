@@ -34,10 +34,9 @@
 namespace libbitcoin {
 namespace chain {
 
-class BC_API output
-{
+class BC_API output {
 public:
-    typedef std::vector<output> list;
+    using list = std::vector<output>;
 
     /// This is a sentinel used in .value to indicate not found in store.
     /// This is a sentinel used in cache.value to indicate not populated.
