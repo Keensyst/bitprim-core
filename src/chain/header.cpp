@@ -104,67 +104,95 @@ bool operator!=(header const& x, header const& y) {
 //-----------------------------------------------------------------------------
 
 // static
-header header::factory_from_data(const data_chunk& data, bool wire) {
-    header instance;
-    instance.from_data(data, wire);
-    return instance;
-}
+inline
+boost::optional<header> header::factory_from_data(data_chunk const& data, bool wire) {
+    // header instance;
+    // instance.from_data(data, wire);
+    // return instance;
 
-// static
-header header::factory_from_data(std::istream& stream, bool wire) {
-    header instance;
-    instance.from_data(stream, wire);
-    return instance;
-}
-
-// static
-header header::factory_from_data(reader& source, bool wire) {
-    header instance;
-    instance.from_data(source, wire);
-    return instance;
-}
-
-bool header::from_data(const data_chunk& data, bool wire) {
     data_source istream(data);
-    return from_data(istream, wire);
+    return factory_from_data(istream, wire);
 }
 
-bool header::from_data(std::istream& stream, bool wire) {
+// static
+inline
+boost::optional<header> header::factory_from_data(std::istream& stream, bool wire) {
+    // header instance;
+    // instance.from_data(stream, wire);
+    // return instance;
+
     istream_reader source(stream);
-    return from_data(source, wire);
+    return factory_from_data(source, wire);
 }
 
-bool header::from_data(reader& source, bool wire) {
-    ////reset();
+// static
+boost::optional<header> header::factory_from_data(reader& source, bool wire) {
+    // header instance;
+    // instance.from_data(source, wire);
+    // return instance;
 
-    version_ = source.read_4_bytes_little_endian();
-    previous_block_hash_ = source.read_hash();
-    merkle_ = source.read_hash();
-    timestamp_ = source.read_4_bytes_little_endian();
-    bits_ = source.read_4_bytes_little_endian();
-    nonce_ = source.read_4_bytes_little_endian();
+    auto version = source.read_4_bytes_little_endian();
+    auto previous_block_hash = source.read_hash();
+    auto merkle = source.read_hash();
+    auto timestamp = source.read_4_bytes_little_endian();
+    auto bits = source.read_4_bytes_little_endian();
+    auto nonce = source.read_4_bytes_little_endian();
+
+    //TODO(fernando): See how to emplace-construct to avoid copies of the hash
+    header instance(version, previous_block_hash, merkle, timestamp, bits, nonce);
 
     if ( ! wire) {
-        validation.median_time_past = source.read_4_bytes_little_endian();
+        instance.validation.median_time_past = source.read_4_bytes_little_endian();
     }
 
     if ( ! source) {
-        reset();
+        // reset();
+        return {};
     }
 
-    return source;
+    return instance;
+
 }
 
-// protected
-void header::reset() {
-    version_ = 0;
-    previous_block_hash_.fill(0);
-    merkle_.fill(0);
-    timestamp_ = 0;
-    bits_ = 0;
-    nonce_ = 0;
-    invalidate_cache();
-}
+// bool header::from_data(const data_chunk& data, bool wire) {
+//     data_source istream(data);
+//     return from_data(istream, wire);
+// }
+
+// bool header::from_data(std::istream& stream, bool wire) {
+//     istream_reader source(stream);
+//     return from_data(source, wire);
+// }
+
+// bool header::from_data(reader& source, bool wire) {
+//     ////reset();
+
+//     version_ = source.read_4_bytes_little_endian();
+//     previous_block_hash_ = source.read_hash();
+//     merkle_ = source.read_hash();
+//     timestamp_ = source.read_4_bytes_little_endian();
+//     bits_ = source.read_4_bytes_little_endian();
+//     nonce_ = source.read_4_bytes_little_endian();
+
+//     if (!wire)
+//         validation.median_time_past = source.read_4_bytes_little_endian();
+
+//     if (!source)
+//         reset();
+
+//     return source;
+// }
+
+// // protected
+// void header::reset() {
+//     version_ = 0;
+//     previous_block_hash_.fill(0);
+//     merkle_.fill(0);
+//     timestamp_ = 0;
+//     bits_ = 0;
+//     nonce_ = 0;
+//     invalidate_cache();
+// }
 
 bool header::is_valid() const {
     return (version_ != 0) ||
@@ -231,10 +259,10 @@ uint32_t header::version() const {
     return version_;
 }
 
-void header::set_version(uint32_t value) {
-    version_ = value;
-    invalidate_cache();
-}
+// void header::set_version(uint32_t value) {
+//     version_ = value;
+//     invalidate_cache();
+// }
 
 hash_digest& header::previous_block_hash() {
     return previous_block_hash_;
@@ -244,10 +272,10 @@ hash_digest const& header::previous_block_hash() const {
     return previous_block_hash_;
 }
 
-void header::set_previous_block_hash(hash_digest const& value) {
-    previous_block_hash_ = value;
-    invalidate_cache();
-}
+// void header::set_previous_block_hash(hash_digest const& value) {
+//     previous_block_hash_ = value;
+//     invalidate_cache();
+// }
 
 hash_digest& header::merkle() {
     return merkle_;
@@ -257,58 +285,59 @@ hash_digest const& header::merkle() const {
     return merkle_;
 }
 
-void header::set_merkle(hash_digest const& value) {
-    merkle_ = value;
-    invalidate_cache();
-}
+// void header::set_merkle(hash_digest const& value) {
+//     merkle_ = value;
+//     invalidate_cache();
+// }
 
 uint32_t header::timestamp() const {
     return timestamp_;
 }
 
-void header::set_timestamp(uint32_t value) {
-    timestamp_ = value;
-    invalidate_cache();
-}
+// void header::set_timestamp(uint32_t value) {
+//     timestamp_ = value;
+//     invalidate_cache();
+// }
 
 uint32_t header::bits() const {
     return bits_;
 }
 
-void header::set_bits(uint32_t value) {
-    bits_ = value;
-    invalidate_cache();
-}
+// void header::set_bits(uint32_t value) {
+//     bits_ = value;
+//     invalidate_cache();
+// }
 
 uint32_t header::nonce() const {
     return nonce_;
 }
 
-void header::set_nonce(uint32_t value) {
-    nonce_ = value;
-    invalidate_cache();
-}
+// void header::set_nonce(uint32_t value) {
+//     nonce_ = value;
+//     invalidate_cache();
+// }
 
 // Cache.
 //-----------------------------------------------------------------------------
 
-// protected
-void header::invalidate_cache() const {
-    ///////////////////////////////////////////////////////////////////////////
-    // Critical Section
-    mutex_.lock_upgrade();
+// // protected
+// void header::invalidate_cache() const {
+//     ///////////////////////////////////////////////////////////////////////////
+//     // Critical Section
+//     mutex_.lock_upgrade();
 
-    if (hash_) {
-        mutex_.unlock_upgrade_and_lock();
-        //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        hash_.reset();
-        //---------------------------------------------------------------------
-        mutex_.unlock_and_lock_upgrade();
-    }
+//     if (hash_)
+//     {
+//         mutex_.unlock_upgrade_and_lock();
+//         //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//         hash_.reset();
+//         //---------------------------------------------------------------------
+//         mutex_.unlock_and_lock_upgrade();
+//     }
 
-    mutex_.unlock_upgrade();
-    ///////////////////////////////////////////////////////////////////////////
-}
+//     mutex_.unlock_upgrade();
+//     ///////////////////////////////////////////////////////////////////////////
+// }
 
 hash_digest header::hash() const {
     ///////////////////////////////////////////////////////////////////////////

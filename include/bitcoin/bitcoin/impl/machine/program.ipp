@@ -36,59 +36,61 @@ namespace machine {
 // Constant registers.
 //-----------------------------------------------------------------------------
 
-inline bool program::is_valid() const
-{
+inline 
+bool program::is_valid() const {
     // An invalid sequence indicates a failure deserializing operations.
     return script_.is_valid_operations() && !script_.is_unspendable();
 }
 
-inline uint32_t program::forks() const
-{
+inline 
+uint32_t program::forks() const {
     return forks_;
 }
 
-inline uint32_t program::input_index() const
-{
+inline 
+uint32_t program::input_index() const {
     return input_index_;
 }
 
-inline const chain::transaction& program::transaction() const
-{
+inline 
+const chain::transaction_raw& program::transaction() const {
     return transaction_;
 }
 
 // Program registers.
 //-----------------------------------------------------------------------------
 
-inline program::op_iterator program::begin() const
-{
+inline 
+program::op_iterator program::begin() const {
     return script_.begin();
 }
 
-inline program::op_iterator program::jump() const
-{
+inline
+program::op_iterator program::jump() const {
     return jump_;
 }
 
-inline program::op_iterator program::end() const
-{
+inline
+program::op_iterator program::end() const {
     return script_.end();
 }
 
-inline size_t program::operation_count() const
-{
+inline
+size_t program::operation_count() const {
     return operation_count_;
 }
 
 // Instructions.
 //-----------------------------------------------------------------------------
 
-inline bool operation_overflow(size_t count)
+inline
+bool operation_overflow(size_t count)
 {
     return count > max_counted_ops;
 }
 
-inline bool program::increment_operation_count(const operation& op)
+inline 
+bool program::increment_operation_count(const operation& op)
 {
     // Addition is safe due to script size validation.
     if (operation::is_counted(op.code()))
@@ -97,7 +99,8 @@ inline bool program::increment_operation_count(const operation& op)
     return !operation_overflow(operation_count_);
 }
 
-inline bool program::increment_multisig_public_key_count(int32_t count)
+inline 
+bool program::increment_multisig_public_key_count(int32_t count)
 {
     // bit.ly/2d1bsdB
     if (count < 0 || count > static_cast<int32_t>(max_script_public_keys))
@@ -108,7 +111,8 @@ inline bool program::increment_multisig_public_key_count(int32_t count)
     return !operation_overflow(operation_count_);
 }
 
-inline bool program::set_jump_register(const operation& op, int32_t offset)
+inline 
+bool program::set_jump_register(const operation& op, int32_t offset)
 {
     if (script_.empty())
         return false;
@@ -137,19 +141,22 @@ inline bool program::set_jump_register(const operation& op, int32_t offset)
 //-----------------------------------------------------------------------------
 
 // push
-inline void program::push(bool value)
+inline 
+void program::push(bool value)
 {
     push_move(value ? value_type{ number::positive_1 } : value_type{});
 }
 
 // Be explicit about the intent to move or copy, to get compiler help.
-inline void program::push_move(value_type&& item)
+inline 
+void program::push_move(value_type&& item)
 {
     primary_.push_back(std::move(item));
 }
 
 // Be explicit about the intent to move or copy, to get compiler help.
-inline void program::push_copy(const value_type& item)
+inline 
+void program::push_copy(const value_type& item)
 {
     primary_.push_back(item);
 }
@@ -158,7 +165,8 @@ inline void program::push_copy(const value_type& item)
 //-----------------------------------------------------------------------------
 
 // This must be guarded.
-inline data_chunk program::pop()
+inline 
+data_chunk program::pop()
 {
     BITCOIN_ASSERT(!empty());
     const auto value = primary_.back();
@@ -166,7 +174,8 @@ inline data_chunk program::pop()
     return value;
 }
 
-inline bool program::pop(int32_t& out_value)
+inline 
+bool program::pop(int32_t& out_value)
 {
     number value;
     if (!pop(value))
@@ -176,25 +185,29 @@ inline bool program::pop(int32_t& out_value)
     return true;
 }
 
-inline bool program::pop(number& out_number, size_t maxiumum_size)
+inline 
+bool program::pop(number& out_number, size_t maxiumum_size)
 {
     return !empty() && out_number.set_data(pop(), maxiumum_size);
 }
 
-inline bool program::pop_binary(number& first, number& second)
+inline 
+bool program::pop_binary(number& first, number& second)
 {
     // The right hand side number is at the top of the stack.
     return pop(first) && pop(second);
 }
 
-inline bool program::pop_ternary(number& first, number& second, number& third)
+inline 
+bool program::pop_ternary(number& first, number& second, number& third)
 {
     // The upper bound is at stack top, lower bound next, value next.
     return pop(first) && pop(second) && pop(third);
 }
 
 // Determines if popped value is valid post-pop stack index and returns index.
-inline bool program::pop_position(stack_iterator& out_position)
+inline 
+bool program::pop_position(stack_iterator& out_position)
 {
     int32_t signed_index;
     if (!pop(signed_index))
@@ -215,7 +228,8 @@ inline bool program::pop_position(stack_iterator& out_position)
 }
 
 // pop1/pop2/.../pop[count]
-inline bool program::pop(data_stack& section, size_t count)
+inline 
+bool program::pop(data_stack& section, size_t count)
 {
     if (size() < count)
         return false;
@@ -230,13 +244,15 @@ inline bool program::pop(data_stack& section, size_t count)
 //-----------------------------------------------------------------------------
 
 // pop1/pop2/.../pop[index]/push[index]/.../push2/push1/push[index]
-inline void program::duplicate(size_t index)
+inline 
+void program::duplicate(size_t index)
 {
     push_copy(item(index));
 }
 
 // pop1/pop2/push1/push2
-inline void program::swap(size_t index_left, size_t index_right)
+inline 
+void program::swap(size_t index_left, size_t index_right)
 {
     // TODO: refactor to allow DRY without const_cast here.
     std::swap(
@@ -245,13 +261,15 @@ inline void program::swap(size_t index_left, size_t index_right)
 }
 
 // pop1/pop2/.../pop[pos-1]/pop[pos]/push[pos-1]/.../push2/push1
-inline void program::erase(const stack_iterator& position)
+inline 
+void program::erase(const stack_iterator& position)
 {
     primary_.erase(position);
 }
 
 // pop1/pop2/.../pop[i]/pop[first]/.../pop[last]/push[i]/.../push2/push1
-inline void program::erase(const stack_iterator& first,
+inline 
+void program::erase(const stack_iterator& first,
     const stack_iterator& last)
 {
     primary_.erase(first, last);
@@ -260,7 +278,8 @@ inline void program::erase(const stack_iterator& first,
 // Primary push/pop optimizations (passive).
 //-----------------------------------------------------------------------------
 
-inline bool program::stack_to_bool() const
+inline 
+bool program::stack_to_bool() const
 {
     const auto& back = primary_.back();
     if (back.empty())
@@ -279,48 +298,56 @@ inline bool program::stack_to_bool() const
     return false;
 }
 
-inline bool program::empty() const
+inline 
+bool program::empty() const
 {
     return primary_.empty();
 }
 
 // This must be guarded (intended for interpreter internal use).
-inline bool program::stack_true() const
+inline 
+bool program::stack_true() const
 {
     BITCOIN_ASSERT(!empty());
     return stack_to_bool();
 }
 
 // This is safe to call when empty (intended for completion handlers).
-inline bool program::stack_result() const
+inline 
+bool program::stack_result() const
 {
     return !empty() && stack_true();
 }
 
-inline bool program::is_stack_overflow() const
+inline 
+bool program::is_stack_overflow() const
 {
     // bit.ly/2cowHlP
     // Addition is safe due to script size validation.
     return size() + alternate_.size() > max_stack_size;
 }
 
-inline bool program::if_(const operation& op) const
+inline 
+bool program::if_(const operation& op) const
 {
     // Skip operation if failed and the operator is unconditional.
     return op.is_conditional() || succeeded();
 }
 
-inline const data_stack::value_type& program::item(size_t index) /*const*/
+inline 
+const data_stack::value_type& program::item(size_t index) /*const*/
 {
     return *position(index);
 }
 
-inline bool program::top(number& out_number, size_t maxiumum_size)
+inline 
+bool program::top(number& out_number, size_t maxiumum_size)
 {
     return !empty() && out_number.set_data(item(0), maxiumum_size);
 }
 
-inline program::stack_iterator program::position(size_t index) /*const*/
+inline 
+program::stack_iterator program::position(size_t index) /*const*/
 {
     // Subtracting 1 makes the stack indexes zero-based (unlike satoshi).
     BITCOIN_ASSERT(index < size());
@@ -328,7 +355,8 @@ inline program::stack_iterator program::position(size_t index) /*const*/
 }
 
 // Pop jump-to-end, push all back, use to construct a script.
-inline operation::list program::subscript() const
+inline 
+operation::list program::subscript() const
 {
     operation::list ops;
 
@@ -338,7 +366,8 @@ inline operation::list program::subscript() const
     return ops;
 }
 
-inline size_t program::size() const
+inline 
+size_t program::size() const
 {
     return primary_.size();
 }
@@ -346,18 +375,21 @@ inline size_t program::size() const
 // Alternate stack.
 //-----------------------------------------------------------------------------
 
-inline bool program::empty_alternate() const
+inline 
+bool program::empty_alternate() const
 {
     return alternate_.empty();
 }
 
-inline void program::push_alternate(value_type&& value)
+inline 
+void program::push_alternate(value_type&& value)
 {
     alternate_.push_back(std::move(value));
 }
 
 // This must be guarded.
-inline program::value_type program::pop_alternate()
+inline 
+program::value_type program::pop_alternate()
 {
     BITCOIN_ASSERT(!alternate_.empty());
     const auto value = alternate_.back();
@@ -368,14 +400,16 @@ inline program::value_type program::pop_alternate()
 // Conditional stack.
 //-----------------------------------------------------------------------------
 
-inline void program::open(bool value)
+inline 
+void program::open(bool value)
 {
     negative_count_ += (value ? 0 : 1);
     condition_.push_back(value);
 }
 
 // This must be guarded.
-inline void program::negate()
+inline 
+void program::negate()
 {
     BITCOIN_ASSERT(!closed());
 
@@ -388,7 +422,8 @@ inline void program::negate()
 }
 
 // This must be guarded.
-inline void program::close()
+inline 
+void program::close()
 {
     BITCOIN_ASSERT(!closed());
 
@@ -400,12 +435,14 @@ inline void program::close()
     ////condition_.pop_back();
 }
 
-inline bool program::closed() const
+inline 
+bool program::closed() const
 {
     return condition_.empty();
 }
 
-inline bool program::succeeded() const
+inline 
+bool program::succeeded() const
 {
     return negative_count_ == 0;
 
@@ -414,7 +451,6 @@ inline bool program::succeeded() const
     ////return std::all_of(condition_.begin(), condition_.end(), true);
 }
 
-} // namespace machine
-} // namespace libbitcoin
+}} // namespace libbitcoin::machine
 
 #endif

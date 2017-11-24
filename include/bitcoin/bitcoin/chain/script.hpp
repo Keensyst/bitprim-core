@@ -39,6 +39,7 @@ namespace libbitcoin {
 namespace chain {
 
 class transaction;
+class transaction_raw;
 
 class BC_API script
 {
@@ -123,16 +124,16 @@ public:
     // Signing.
     //-------------------------------------------------------------------------
 
-    static hash_digest generate_signature_hash(const transaction& tx,
+    static hash_digest generate_signature_hash(transaction_raw const& tx,
         uint32_t input_index, const script& script_code, uint8_t sighash_type);
 
     static bool check_signature(const ec_signature& signature,
         uint8_t sighash_type, const data_chunk& public_key,
-        const script& script_code, const transaction& tx,
+        const script& script_code, transaction_raw const& tx,
         uint32_t input_index);
 
     static bool create_endorsement(endorsement& out, const ec_secret& secret,
-        const script& prevout_script, const transaction& tx,
+        const script& prevout_script, transaction_raw const& tx,
         uint32_t input_index, uint8_t sighash_type);
 
     // Utilities (static).
@@ -187,12 +188,15 @@ public:
     // Validation.
     //-------------------------------------------------------------------------
 
-    static code verify(const transaction& tx, uint32_t input, uint32_t forks);
+    // static code verify(transaction const& tx, uint32_t input, uint32_t forks);
+    // // TOD: move back to private.
+    // static code verify(transaction const& tx, uint32_t input_index, uint32_t forks, const script& input_script, const script& prevout_script);
 
+
+    //TODO(fernando): Use templates to avoid code duplication
+    static code verify(transaction_raw const& tx, uint32_t input, uint32_t forks);
     // TOD: move back to private.
-    static code verify(const transaction& tx, uint32_t input_index,
-        uint32_t forks, const script& input_script,
-        const script& prevout_script);
+    static code verify(transaction_raw const& tx, uint32_t input_index, uint32_t forks, const script& input_script, const script& prevout_script);
 
 protected:
     // So that input and output may call reset from their own.
@@ -206,7 +210,7 @@ protected:
 private:
     static size_t serialized_size(const operation::list& ops);
     static data_chunk operations_to_data(const operation::list& ops);
-    ////static code verify(const transaction& tx, uint32_t input_index,
+    ////static code verify(transaction const& tx, uint32_t input_index,
     ////    uint32_t forks, const script& input_script,
     ////    const script& prevout_script);
 

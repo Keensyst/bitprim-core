@@ -44,12 +44,11 @@ namespace chain {
 class BC_API block
 {
 public:
-    typedef std::vector<block> list;
-    typedef std::vector<size_t> indexes;
+    using list = std::vector<block>;
+    using indexes = std::vector<size_t>;
 
     // THIS IS FOR LIBRARY USE ONLY, DO NOT CREATE A DEPENDENCY ON IT.
-    struct validation
-    {
+    struct validation {
         uint64_t originator = 0;
         code error = error::not_found;
         chain_state::ptr state = nullptr;
@@ -76,31 +75,34 @@ public:
     block();
 
     block(block&& other);
-    block(const block& other);
+    block(block const& other);
 
     block(chain::header&& header, transaction::list&& transactions);
-    block(const chain::header& header, const transaction::list& transactions);
+    block(chain::header const& header, transaction::list const& transactions);
 
     // Operators.
     //-------------------------------------------------------------------------
 
     /// This class is move assignable but NOT copy assignable.
     block& operator=(block&& other);
-    block& operator=(const block& other) = delete;
+    block& operator=(block const& other) = delete;
 
-    bool operator==(const block& other) const;
-    bool operator!=(const block& other) const;
+    bool operator==(block const& other) const;
+    bool operator!=(block const& other) const;
 
     // Deserialization.
     //-------------------------------------------------------------------------
 
-    static block factory_from_data(const data_chunk& data);
-    static block factory_from_data(std::istream& stream);
-    static block factory_from_data(reader& source);
+    static 
+    boost::optional<block> factory_from_data(data_chunk const& data);
+    static 
+    boost::optional<block> factory_from_data(std::istream& stream);
+    static 
+    boost::optional<block> factory_from_data(reader& source);
 
-    bool from_data(const data_chunk& data);
-    bool from_data(std::istream& stream);
-    bool from_data(reader& source);
+    // bool from_data(const data_chunk& data);
+    // bool from_data(std::istream& stream);
+    // bool from_data(reader& source);
 
     bool is_valid() const;
 
@@ -177,7 +179,7 @@ public:
     mutable validation validation;
 
 protected:
-    void reset();
+    // void reset();
     size_t non_coinbase_input_count() const;
 
 private:

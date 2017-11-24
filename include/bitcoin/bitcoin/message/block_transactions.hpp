@@ -35,18 +35,9 @@ public:
     typedef std::shared_ptr<block_transactions> ptr;
     typedef std::shared_ptr<const block_transactions> const_ptr;
 
-    static block_transactions factory_from_data(uint32_t version,
-        const data_chunk& data);
-    static block_transactions factory_from_data(uint32_t version,
-        std::istream& stream);
-    static block_transactions factory_from_data(uint32_t version,
-        reader& source);
-
     block_transactions();
-    block_transactions(const hash_digest& block_hash,
-        const chain::transaction::list& transactions);
-    block_transactions(hash_digest&& block_hash,
-        chain::transaction::list&& transactions);
+    block_transactions(const hash_digest& block_hash, const chain::transaction::list& transactions);
+    block_transactions(hash_digest&& block_hash, chain::transaction::list&& transactions);
     block_transactions(const block_transactions& other);
     block_transactions(block_transactions&& other);
 
@@ -60,9 +51,7 @@ public:
     void set_transactions(const chain::transaction::list& other);
     void set_transactions(chain::transaction::list&& other);
 
-    bool from_data(uint32_t version, const data_chunk& data);
-    bool from_data(uint32_t version, std::istream& stream);
-    bool from_data(uint32_t version, reader& source);
+    
     data_chunk to_data(uint32_t version) const;
     void to_data(uint32_t version, std::ostream& stream) const;
     void to_data(uint32_t version, writer& sink) const;
@@ -76,6 +65,17 @@ public:
 
     bool operator==(const block_transactions& other) const;
     bool operator!=(const block_transactions& other) const;
+
+    static 
+    boost::optional<block_transactions> factory_from_data(uint32_t version, const data_chunk& data);
+    static 
+    boost::optional<block_transactions> factory_from_data(uint32_t version, std::istream& stream);
+    static 
+    boost::optional<block_transactions> factory_from_data(uint32_t version, reader& source);
+
+    // bool from_data(uint32_t version, const data_chunk& data);
+    // bool from_data(uint32_t version, std::istream& stream);
+    // bool from_data(uint32_t version, reader& source);
 
     static const std::string command;
     static const uint32_t version_minimum;

@@ -51,8 +51,7 @@
 
 #include <bitcoin/bitcoin/bitcoin_cash_support.hpp>
 
-namespace libbitcoin {
-namespace chain {
+namespace libbitcoin { namespace chain {
 
 using namespace bc::config;
 using namespace bc::machine;
@@ -146,12 +145,11 @@ static const std::string encoded_testnet_genesis_block =
 //-----------------------------------------------------------------------------
 
 block::block()
-  : header_{}, validation{}
-{
-}
+    : header_{}, validation{}
+{}
 
-block::block(const block& other)
-  : block(other.header_, other.transactions_)
+block::block(block const& other)
+    : block(other.header_, other.transactions_)
 {
     validation = other.validation;
 }
@@ -163,37 +161,31 @@ block::block(block&& other)
 }
 
 // TODO: deal with possibility of inconsistent merkle root in relation to txs.
-block::block(const chain::header& header,
-    const transaction::list& transactions)
+block::block(chain::header const& header, transaction::list const& transactions)
   : header_(header), transactions_(transactions), validation{}
-{
-}
+{}
 
 // TODO: deal with possibility of inconsistent merkle root in relation to txs.
 block::block(chain::header&& header, transaction::list&& transactions)
   : header_(std::move(header)), transactions_(std::move(transactions)),
     validation{}
-{
-}
+{}
 
 // Operators.
 //-----------------------------------------------------------------------------
 
-block& block::operator=(block&& other)
-{
+block& block::operator=(block&& other) {
     header_ = std::move(other.header_);
     transactions_ = std::move(other.transactions_);
     validation = std::move(other.validation);
     return *this;
 }
 
-bool block::operator==(const block& other) const
-{
+bool block::operator==(const block& other) const {
     return (header_ == other.header_) && (transactions_ == other.transactions_);
 }
 
-bool block::operator!=(const block& other) const
-{
+bool block::operator!=(block const& other) const {
     return !(*this == other);
 }
 
@@ -201,89 +193,125 @@ bool block::operator!=(const block& other) const
 //-----------------------------------------------------------------------------
 
 // static
-block block::factory_from_data(const data_chunk& data)
-{
-    block instance;
-    instance.from_data(data);
-    return instance;
-}
+boost::optional<block> block::factory_from_data(data_chunk const& data) {
+    // block instance;
+    // instance.from_data(data);
+    // return instance;
 
-// static
-block block::factory_from_data(std::istream& stream)
-{
-    block instance;
-    instance.from_data(stream);
-    return instance;
-}
-
-// static
-block block::factory_from_data(reader& source)
-{
-    block instance;
-    instance.from_data(source);
-    return instance;
-}
-
-bool block::from_data(const data_chunk& data)
-{
     data_source istream(data);
-    return from_data(istream);
+    return factory_from_data(istream);
 }
 
-bool block::from_data(std::istream& stream)
-{
+// static
+boost::optional<block> block::factory_from_data(std::istream& stream) {
+    // block instance;
+    // instance.from_data(stream);
+    // return instance;
+
     istream_reader source(stream);
-    return from_data(source);
+    return factory_from_data(source);
 }
 
-bool block::from_data(reader& source)
-{
-    validation.start_deserialize = asio::steady_clock::now();
-    reset();
+// static
+boost::optional<block> block::factory_from_data(reader& source) {
 
-    if (!header_.from_data(source))
-        return false;
+    // instance.validation.start_deserialize = asio::steady_clock::now();
+    auto start_deserialize = asio::steady_clock::now();
 
-    const auto count = source.read_size_little_endian();
+    auto header_opt = header::factory_from_data(source);
+    if ( ! header_opt) {
+        return {};
+    }
+
+    auto count = source.read_size_little_endian();
 
     // Guard against potential for arbitary memory allocation.
-    if (count > get_max_block_size(is_bitcoin_cash()))
+    if (count > get_max_block_size(is_bitcoin_cash())) {
         source.invalidate();
-    else
-        transactions_.resize(count);
+        return {};
+    }
+
+    transaction::list txs;
+    txs.reserve(count);
 
     // Order is required.
-    for (auto& tx: transactions_)
-        if (!tx.from_data(source, true))
-            break;
+    while (count != 0) {
+        auto opt = transaction::factory_from_data(source, true);
+        if ( ! opt) break;
+        txs.push_back(*opt);
+        --count;
+    }
 
-    if (!source)
-        reset();
+    if ( ! source) {
+        // reset();
+        return {};
+    }
 
-    validation.end_deserialize = asio::steady_clock::now();
-    return source;
+    block instance(*header_opt, std::move(txs));
+    instance.validation.end_deserialize = asio::steady_clock::now();
+    instance.validation.start_deserialize = start_deserialize;
+
+    return instance;
 }
 
-// private
-void block::reset()
-{
-    header_.reset();
-    transactions_.clear();
-    transactions_.shrink_to_fit();
-}
+// bool block::from_data(const data_chunk& data)
+// {
+//     data_source istream(data);
+//     return from_data(istream);
+// }
 
-bool block::is_valid() const
-{
+// bool block::from_data(std::istream& stream)
+// {
+//     istream_reader source(stream);
+//     return from_data(source);
+// }
+
+// bool block::from_data(reader& source)
+// {
+//     validation.start_deserialize = asio::steady_clock::now();
+//     reset();
+
+//     if (!header_.from_data(source))
+//         return false;
+
+//     auto const count = source.read_size_little_endian();
+
+//     // Guard against potential for arbitary memory allocation.
+//     if (count > get_max_block_size(is_bitcoin_cash()))
+//         source.invalidate();
+//     else
+//         transactions_.resize(count);
+
+//     // Order is required.
+//     for (auto& tx: transactions_)
+//         if (!tx.from_data(source, true))
+//             break;
+
+//     if (!source)
+//         reset();
+
+//     validation.end_deserialize = asio::steady_clock::now();
+//     return source;
+// }
+
+// // private
+// void block::reset()
+// {
+//     header_.reset();
+//     transactions_.clear();
+//     transactions_.shrink_to_fit();
+// }
+
+bool block::is_valid() const {
     return !transactions_.empty() || header_.is_valid();
 }
 
 // Serialization.
 //-----------------------------------------------------------------------------
 
-data_chunk block::to_data() const
-{
+data_chunk block::to_data() const {
     data_chunk data;
-    const auto size = serialized_size();
+    auto const size = serialized_size();
     data.reserve(size);
     data_sink ostream(data);
     to_data(ostream);
@@ -292,26 +320,23 @@ data_chunk block::to_data() const
     return data;
 }
 
-void block::to_data(std::ostream& stream) const
-{
+void block::to_data(std::ostream& stream) const {
     ostream_writer sink(stream);
     to_data(sink);
 }
 
-void block::to_data(writer& sink) const
-{
+void block::to_data(writer& sink) const {
     header_.to_data(sink);
     sink.write_variable_little_endian(transactions_.size());
-    const auto to = [&sink](const transaction& tx) { tx.to_data(sink); };
+    auto const to = [&sink](transaction const& tx) { chain::to_data(tx, sink); };
     std::for_each(transactions_.begin(), transactions_.end(), to);
 }
 
-hash_list block::to_hashes() const
-{
-    const auto to_hash = [](const transaction& tx) { return tx.hash(); };
+hash_list block::to_hashes() const {
+    auto const to_hash = [](transaction const& tx) { return tx.hash(); };
 
     hash_list out;
-    const auto& txs = transactions();
+    auto const& txs = transactions();
     out.resize(txs.size());
     std::transform(txs.begin(), txs.end(), out.begin(), to_hash);
     return out;
@@ -320,126 +345,112 @@ hash_list block::to_hashes() const
 // Properties (size, accessors, cache).
 //-----------------------------------------------------------------------------
 
-size_t block::serialized_size() const
-{
-    const auto sum = [](size_t total, const transaction& tx)
-    {
-        return safe_add(total, tx.serialized_size(true));
+size_t block::serialized_size() const {
+    auto const sum = [](size_t total, transaction const& tx) {
+        return safe_add(total, chain::serialized_size(tx, true));
     };
 
-    const auto& txs = transactions_;
+    auto const& txs = transactions_;
 
     return header_.serialized_size() +
         message::variable_uint_size(transactions_.size()) +
         std::accumulate(txs.begin(), txs.end(), size_t{0}, sum);
 }
 
-chain::header& block::header()
-{
+chain::header& block::header() {
     return header_;
 }
 
-const chain::header& block::header() const
-{
+const chain::header& block::header() const {
     return header_;
 }
 
 // TODO: must call header.set_merkle(generate_merkle_root()) though this may
 // be very suboptimal if the block is being constructed. First verify that all
 // current uses will not be impacted and if so change them to use constructor.
-void block::set_header(const chain::header& value)
-{
+void block::set_header(const chain::header& value) {
     header_ = value;
 }
 
 // TODO: see set_header comments.
-void block::set_header(chain::header&& value)
-{
+void block::set_header(chain::header&& value) {
     header_ = std::move(value);
 }
 
-transaction::list& block::transactions()
-{
+transaction::list& block::transactions() {
     return transactions_;
 }
 
-const transaction::list& block::transactions() const
-{
+transaction::list const& block::transactions() const {
     return transactions_;
 }
 
 // TODO: see set_header comments.
-void block::set_transactions(const transaction::list& value)
-{
+void block::set_transactions(transaction::list const& value) {
     transactions_ = value;
     total_inputs_ = boost::none;
 }
 
 // TODO: see set_header comments.
-void block::set_transactions(transaction::list&& value)
-{
+void block::set_transactions(transaction::list&& value) {
     transactions_ = std::move(value);
     total_inputs_ = boost::none;
 }
 
 // Convenience property.
-hash_digest block::hash() const
-{
+hash_digest block::hash() const {
     return header_.hash();
 }
 
 // Utilities.
 //-----------------------------------------------------------------------------
 
-chain::block block::genesis_mainnet()
-{
+chain::block block::genesis_mainnet() {
     data_chunk data;
     decode_base16(data, encoded_mainnet_genesis_block);
-    const auto genesis = chain::block::factory_from_data(data);
+    auto const genesis = chain::block::factory_from_data(data);
 
-    BITCOIN_ASSERT(genesis.is_valid());
-    BITCOIN_ASSERT(genesis.transactions().size() == 1);
-    BITCOIN_ASSERT(genesis.generate_merkle_root() == genesis.header().merkle());
-    return genesis;
+    BITCOIN_ASSERT(genesis);
+    BITCOIN_ASSERT(genesis->is_valid());
+    BITCOIN_ASSERT(genesis->transactions().size() == 1);
+    BITCOIN_ASSERT(genesis->generate_merkle_root() == genesis->header().merkle());
+    return *genesis;
 }
 
-chain::block block::genesis_testnet()
-{
+chain::block block::genesis_testnet() {
     data_chunk data;
     decode_base16(data, encoded_testnet_genesis_block);
-    const auto genesis = chain::block::factory_from_data(data);
+    auto const genesis = chain::block::factory_from_data(data);
 
-    BITCOIN_ASSERT(genesis.is_valid());
-    BITCOIN_ASSERT(genesis.transactions().size() == 1);
-    BITCOIN_ASSERT(genesis.generate_merkle_root() == genesis.header().merkle());
-    return genesis;
+    BITCOIN_ASSERT(genesis);
+    BITCOIN_ASSERT(genesis->is_valid());
+    BITCOIN_ASSERT(genesis->transactions().size() == 1);
+    BITCOIN_ASSERT(genesis->generate_merkle_root() == genesis->header().merkle());
+    return *genesis;
 }
 
 // With a 32 bit chain the size of the result should not exceed 43 and with a
 // 64 bit chain should not exceed 75, using a limit of: 10 + log2(height) + 1.
-size_t block::locator_size(size_t top)
-{
+size_t block::locator_size(size_t top) {
     // Set rounding behavior, not consensus-related, thread side effect :<.
     std::fesetround(FE_UPWARD);
 
-    const auto first_ten_or_top = std::min(size_t(10), top);
-    const auto remaining = top - first_ten_or_top;
-    const auto back_off = remaining == 0 ? 0.0 : std::log2(remaining);
-    const auto rounded_up_log = static_cast<size_t>(std::nearbyint(back_off));
+    auto const first_ten_or_top = std::min(size_t(10), top);
+    auto const remaining = top - first_ten_or_top;
+    auto const back_off = remaining == 0 ? 0.0 : std::log2(remaining);
+    auto const rounded_up_log = static_cast<size_t>(std::nearbyint(back_off));
     return first_ten_or_top + rounded_up_log + size_t(1);
 }
 
 // This algorithm is a network best practice, not a consensus rule.
-block::indexes block::locator_heights(size_t top)
-{
+block::indexes block::locator_heights(size_t top) {
     size_t step = 1;
     block::indexes heights;
-    const auto reservation = locator_size(top);
+    auto const reservation = locator_size(top);
     heights.reserve(reservation);
 
     // Start at the top of the chain and work backwards to zero.
-    for (auto height = top; height > 0; height = floor_subtract(height, step))
-    {
+    for (auto height = top; height > 0; height = floor_subtract(height, step)) {
         // Push top 10 indexes first, then back off exponentially.
         if (heights.size() >= 10)
             step <<= 1;
@@ -459,9 +470,8 @@ block::indexes block::locator_heights(size_t top)
 //-----------------------------------------------------------------------------
 
 // static
-uint256_t block::proof(uint32_t bits)
-{
-    const auto header_bits = compact(bits);
+uint256_t block::proof(uint32_t bits) {
+    auto const header_bits = compact(bits);
 
     if (header_bits.is_overflowed())
         return 0;
@@ -474,7 +484,7 @@ uint256_t block::proof(uint32_t bits)
     // While actually achieving this work is improbable, this method operates
     // on user data method and therefore must be guarded.
     //*************************************************************************
-    const auto divisor = target + 1;
+    auto const divisor = target + 1;
 
     // We need to compute 2**256 / (target + 1), but we can't represent 2**256
     // as it's too large for uint256. However as 2**256 is at least as large as
@@ -484,32 +494,27 @@ uint256_t block::proof(uint32_t bits)
 }
 
 // [GetBlockProof]
-uint256_t block::proof() const
-{
+uint256_t block::proof() const {
     return proof(header_.bits());
 }
 
-uint64_t block::subsidy(size_t height)
-{
+uint64_t block::subsidy(size_t height) {
     auto subsidy = initial_block_subsidy_satoshi();
     subsidy >>= (height / subsidy_interval);
     return subsidy;
 }
 
 // Returns max_size_t in case of overflow or unpopulated chain state.
-size_t block::signature_operations() const
-{
-    const auto state = validation.state;
+size_t block::signature_operations() const {
+    auto const state = validation.state;
     return state ? signature_operations(
         state->is_enabled(rule_fork::bip16_rule)) : max_size_t;
 }
 
 // Returns max_size_t in case of overflow.
-size_t block::signature_operations(bool bip16_active) const
-{
-    const auto value = [bip16_active](size_t total, const transaction& tx)
-    {
-        return ceiling_add(total, tx.signature_operations(bip16_active));
+size_t block::signature_operations(bool bip16_active) const {
+    auto const value = [bip16_active](size_t total, transaction const& tx) {
+        return ceiling_add(total, chain::signature_operations(tx, bip16_active));
     };
 
     //*************************************************************************
@@ -517,20 +522,18 @@ size_t block::signature_operations(bool bip16_active) const
     // fact that coinbase input scripts are never executed. There is no need
     // to exclude p2sh coinbase sigops since there is never a script to count.
     //*************************************************************************
-    const auto& txs = transactions_;
+    auto const& txs = transactions_;
     return std::accumulate(txs.begin(), txs.end(), size_t{0}, value);
 }
 
-size_t block::total_inputs(bool with_coinbase) const
-{
+size_t block::total_inputs(bool with_coinbase) const {
     size_t value;
 
     ///////////////////////////////////////////////////////////////////////////
     // Critical Section
     mutex_.lock_upgrade();
 
-    if (total_inputs_ != boost::none)
-    {
+    if (total_inputs_ != boost::none) {
         value = total_inputs_.get();
         mutex_.unlock_upgrade();
         //---------------------------------------------------------------------
@@ -540,12 +543,11 @@ size_t block::total_inputs(bool with_coinbase) const
     mutex_.unlock_upgrade_and_lock();
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    const auto inputs = [](size_t total, const transaction& tx)
-    {
+    auto const inputs = [](size_t total, transaction const& tx) {
         return safe_add(total, tx.inputs().size());
     };
 
-    const auto& txs = transactions_;
+    auto const& txs = transactions_;
     const size_t offset = with_coinbase ? 0 : 1;
     value = std::accumulate(txs.begin() + offset, txs.end(), size_t(0), inputs);
     total_inputs_ = value;
@@ -557,52 +559,45 @@ size_t block::total_inputs(bool with_coinbase) const
 
 // True if there is another coinbase other than the first tx.
 // No txs or coinbases returns false.
-bool block::is_extra_coinbases() const
-{
+bool block::is_extra_coinbases() const {
     if (transactions_.empty())
         return false;
 
-    const auto value = [](const transaction& tx)
-    {
-        return tx.is_coinbase();
+    auto const value = [](transaction const& tx) {
+        return is_coinbase(tx);
     };
 
-    const auto& txs = transactions_;
+    auto const& txs = transactions_;
     return std::any_of(txs.begin() + 1, txs.end(), value);
 }
 
-bool block::is_final(size_t height, uint32_t block_time) const
-{
-    const auto value = [=](const transaction& tx)
-    {
-        return tx.is_final(height, block_time);
+bool block::is_final(size_t height, uint32_t block_time) const {
+    auto const value = [=](transaction const& tx) {
+        return chain::is_final(tx, height, block_time);
     };
 
-    const auto& txs = transactions_;
+    auto const& txs = transactions_;
     return std::all_of(txs.begin(), txs.end(), value);
 }
 
 // Distinctness is defined by transaction hash.
-bool block::is_distinct_transaction_set() const
-{
-    const auto hasher = [](const transaction& tx) { return tx.hash(); };
-    const auto& txs = transactions_;
+bool block::is_distinct_transaction_set() const {
+    auto const hasher = [](transaction const& tx) { return tx.hash(); };
+    auto const& txs = transactions_;
     hash_list hashes(txs.size());
     std::transform(txs.begin(), txs.end(), hashes.begin(), hasher);
     std::sort(hashes.begin(), hashes.end());
-    const auto distinct_end = std::unique(hashes.begin(), hashes.end());
+    auto const distinct_end = std::unique(hashes.begin(), hashes.end());
     return distinct_end == hashes.end();
 }
 
-hash_digest block::generate_merkle_root() const
-{
+hash_digest block::generate_merkle_root() const {
     if (transactions_.empty())
         return null_hash;
 
     hash_list merkle, update;
 
-    auto hasher = [&merkle](const transaction& tx)
-    {
+    auto hasher = [&merkle](transaction const& tx) {
         merkle.push_back(tx.hash());
     };
 
@@ -612,8 +607,7 @@ hash_digest block::generate_merkle_root() const
     // Initial capacity is half of the original list (clear doesn't reset).
     update.reserve((merkle.size() + 1) / 2);
 
-    while (merkle.size() > 1)
-    {
+    while (merkle.size() > 1) {
         // If number of hashes is odd, duplicate last hash in the list.
         if (merkle.size() % 2 != 0)
             merkle.push_back(merkle.back());
@@ -629,116 +623,101 @@ hash_digest block::generate_merkle_root() const
     return merkle.front();
 }
 
-size_t block::non_coinbase_input_count() const
-{
+size_t block::non_coinbase_input_count() const {
     if (transactions_.empty())
         return 0;
 
-    const auto counter = [](size_t sum, const transaction& tx)
-    {
+    auto const counter = [](size_t sum, transaction const& tx) {
         return sum + tx.inputs().size();
     };
 
-    const auto& txs = transactions_;
+    auto const& txs = transactions_;
     return std::accumulate(txs.begin() + 1, txs.end(), size_t(0), counter);
 }
 
 // This is an early check that is redundant with block pool accept checks.
-bool block::is_internal_double_spend() const
-{
+bool block::is_internal_double_spend() const {
     if (transactions_.empty())
         return false;
 
     point::list outs;
     outs.reserve(non_coinbase_input_count());
-    const auto& txs = transactions_;
+    auto const& txs = transactions_;
 
     // Merge the prevouts of all non-coinbase transactions into one set.
-    for (auto tx = txs.begin() + 1; tx != txs.end(); ++tx)
-    {
-        auto out = tx->previous_outputs();
+    for (auto tx = txs.begin() + 1; tx != txs.end(); ++tx) {
+        auto out = previous_outputs(*tx);
         std::move(out.begin(), out.end(), std::inserter(outs, outs.end()));
     }
 
     std::sort(outs.begin(), outs.end());
-    const auto distinct_end = std::unique(outs.begin(), outs.end());
-    const auto distinct = (distinct_end == outs.end());
+    auto const distinct_end = std::unique(outs.begin(), outs.end());
+    auto const distinct = (distinct_end == outs.end());
     return !distinct;
 }
 
-bool block::is_valid_merkle_root() const
-{
+bool block::is_valid_merkle_root() const {
     return generate_merkle_root() == header_.merkle();
 }
 
 // Overflow returns max_uint64.
-uint64_t block::fees() const
-{
+uint64_t block::fees() const {
     ////static_assert(max_money() < max_uint64, "overflow sentinel invalid");
-    const auto value = [](uint64_t total, const transaction& tx)
-    {
-        return ceiling_add(total, tx.fees());
+    auto const value = [](uint64_t total, transaction const& tx) {
+        return ceiling_add(total, chain::fees(tx));
     };
 
-    const auto& txs = transactions_;
+    auto const& txs = transactions_;
     return std::accumulate(txs.begin(), txs.end(), uint64_t{0}, value);
 }
 
-uint64_t block::claim() const
-{
-    return transactions_.empty() ? 0 :
-        transactions_.front().total_output_value();
+uint64_t block::claim() const {
+    return transactions_.empty() ? 0 : total_output_value(transactions_.front());
 }
 
 // Overflow returns max_uint64.
-uint64_t block::reward(size_t height) const
-{
+uint64_t block::reward(size_t height) const {
     ////static_assert(max_money() < max_uint64, "overflow sentinel invalid");
     return ceiling_add(fees(), subsidy(height));
 }
 
-bool block::is_valid_coinbase_claim(size_t height) const
-{
+bool block::is_valid_coinbase_claim(size_t height) const {
     return claim() <= reward(height);
 }
 
-bool block::is_valid_coinbase_script(size_t height) const
-{
+bool block::is_valid_coinbase_script(size_t height) const {
     if (transactions_.empty() || transactions_.front().inputs().empty())
         return false;
 
-    const auto& script = transactions_.front().inputs().front().script();
+    auto const& script = transactions_.front().inputs().front().script();
     return script::is_coinbase_pattern(script.operations(), height);
 }
 
-code block::check_transactions() const
-{
+code block::check_transactions() const {
     code ec;
 
-    for (const auto& tx: transactions_)
-        if ((ec = tx.check(false)))
+    for (auto const& tx: transactions_)
+        if ((ec = chain::check(tx, false)))
             return ec;
 
     return error::success;
 }
 
-code block::accept_transactions(const chain_state& state) const
-{
+code block::accept_transactions(const chain_state& state) const {
     code ec;
 
-    for (const auto& tx: transactions_)
-        if ((ec = tx.accept(state, false)))
+    for (auto const& tx: transactions_)
+        if ((ec = chain::accept(tx, state, false)))
             return ec;
 
     return error::success;
 }
 
-code block::connect_transactions(const chain_state& state) const
-{
+code block::connect_transactions(const chain_state& state) const {
     code ec;
 
-    for (const auto& tx: transactions_)
-        if ((ec = tx.connect(state)))
+    for (auto const& tx: transactions_)
+        if ((ec = chain::connect(tx, state)))
             return ec;
 
     return error::success;
@@ -748,8 +727,7 @@ code block::connect_transactions(const chain_state& state) const
 //-----------------------------------------------------------------------------
 
 // These checks are self-contained; blockchain (and so version) independent.
-code block::check() const
-{
+code block::check() const {
     validation.start_check = asio::steady_clock::now();
 
     code ec;
@@ -763,7 +741,7 @@ code block::check() const
     else if (transactions_.empty())
         return error::empty_block;
 
-    else if (!transactions_.front().is_coinbase())
+    else if ( ! is_coinbase(transactions_.front()))
         return error::first_not_coinbase;
 
     else if (is_extra_coinbases())
@@ -776,7 +754,7 @@ code block::check() const
     else if (is_internal_double_spend())
         return error::block_internal_double_spend;
 
-    else if (!is_valid_merkle_root())
+    else if ( ! is_valid_merkle_root())
         return error::merkle_mismatch;
 
     // We cannot know if bip16 is enabled at this point so we disable it.
@@ -787,26 +765,23 @@ code block::check() const
     ////else if (signature_operations(false) > get_max_block_sigops(is_bitcoin_cash()))
     ////    return error::block_legacy_sigop_limit;
 
-    else
-        return check_transactions();
+    return check_transactions();
 }
 
-code block::accept(bool transactions) const
-{
-    const auto state = validation.state;
+code block::accept(bool transactions) const {
+    auto const state = validation.state;
     return state ? accept(*state, transactions) : error::operation_failed;
 }
 
 // These checks assume that prevout caching is completed on all tx.inputs.
-code block::accept(const chain_state& state, bool transactions) const
-{
+code block::accept(const chain_state& state, bool transactions) const {
     validation.start_accept = asio::steady_clock::now();
 
     code ec;
-    const auto bip16 = state.is_enabled(rule_fork::bip16_rule);
-    const auto bip34 = state.is_enabled(rule_fork::bip34_rule);
+    auto const bip16 = state.is_enabled(rule_fork::bip16_rule);
+    auto const bip34 = state.is_enabled(rule_fork::bip34_rule);
 
-    const auto block_time = state.is_enabled(rule_fork::bip113_rule) ?
+    auto const block_time = state.is_enabled(rule_fork::bip113_rule) ?
         state.median_time_past() : header_.timestamp();
 
     if ((ec = header_.accept(state)))
@@ -839,14 +814,12 @@ code block::accept(const chain_state& state, bool transactions) const
         return ec;
 }
 
-code block::connect() const
-{
-    const auto state = validation.state;
+code block::connect() const {
+    auto const state = validation.state;
     return state ? connect(*state) : error::operation_failed;
 }
 
-code block::connect(const chain_state& state) const
-{
+code block::connect(const chain_state& state) const {
     validation.start_connect = asio::steady_clock::now();
 
     if (state.is_under_checkpoint())
@@ -856,5 +829,4 @@ code block::connect(const chain_state& state) const
         return connect_transactions(state);
 }
 
-} // namespace chain
-} // namespace libbitcoin
+}} // namespace libbitcoin::chain

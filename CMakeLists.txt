@@ -307,6 +307,7 @@ set(bitprim_core_sources
 
         src/chain/script.cpp
         src/chain/transaction.cpp
+        src/chain/transaction_raw.cpp
 
         src/machine/interpreter.cpp
         src/machine/number.cpp

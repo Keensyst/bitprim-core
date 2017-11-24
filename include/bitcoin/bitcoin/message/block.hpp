@@ -45,10 +45,6 @@ public:
     typedef std::shared_ptr<const_ptr_list> const_ptr_list_ptr;
     typedef std::shared_ptr<const const_ptr_list> const_ptr_list_const_ptr;
 
-    static block factory_from_data(uint32_t version, const data_chunk& data);
-    static block factory_from_data(uint32_t version, std::istream& stream);
-    static block factory_from_data(uint32_t version, reader& source);
-
     block();
 
     block(block&& other);
@@ -60,9 +56,10 @@ public:
     block(chain::header&& header, chain::transaction::list&& transactions);
     block(const chain::header& header, const chain::transaction::list& transactions);
 
-    bool from_data(uint32_t version, const data_chunk& data);
-    bool from_data(uint32_t version, std::istream& stream);
-    bool from_data(uint32_t version, reader& source);
+                                                                                                                                                                                                                                                                                                                                                                                                    // bool from_data(uint32_t version, const data_chunk& data);
+                                                                                                                                                                                                                                                                                                                                                                                                    // bool from_data(uint32_t version, std::istream& stream);
+                                                                                                                                                                                                                                                                                                                                                                                                    // bool from_data(uint32_t version, reader& source);
+
     data_chunk to_data(uint32_t version) const;
     void to_data(uint32_t version, std::ostream& stream) const;
     void to_data(uint32_t version, writer& sink) const;
@@ -79,6 +76,15 @@ public:
 
     bool operator==(const block& other) const;
     bool operator!=(const block& other) const;
+
+
+    static 
+    boost::optional<block> factory_from_data(uint32_t version, const data_chunk& data);
+    static 
+    boost::optional<block> factory_from_data(uint32_t version, std::istream& stream);
+    static 
+    boost::optional<block> factory_from_data(uint32_t version, reader& source);
+
 
     static const std::string command;
     static const uint32_t version_minimum;

@@ -35,129 +35,121 @@ const std::string block::command = "block";
 const uint32_t block::version_minimum = version::level::minimum;
 const uint32_t block::version_maximum = version::level::maximum;
 
-block block::factory_from_data(uint32_t version, const data_chunk& data)
-{
-    block instance;
-    instance.from_data(version, data);
-    return instance;
-}
-
-block block::factory_from_data(uint32_t version, std::istream& stream)
-{
-    block instance;
-    instance.from_data(version, stream);
-    return instance;
-}
-
-block block::factory_from_data(uint32_t version, reader& source)
-{
-    block instance;
-    instance.from_data(version, source);
-    return instance;
-}
-
 block::block()
   : chain::block()
-{
-}
+{}
 
 block::block(block&& other)
   : chain::block(std::move(other))
-{
-}
+{}
 
-block::block(const block& other)
+block::block(block const& other)
   : chain::block(other)
-{
-}
+{}
 
 block::block(chain::block&& other)
   : chain::block(std::move(other))
-{
-}
+{}
 
 block::block(const chain::block& other)
   : chain::block(other)
-{
-}
+{}
 
 block::block(chain::header&& header, chain::transaction::list&& transactions)
   : chain::block(std::move(header), std::move(transactions))
-{
-}
+{}
 
 block::block(const chain::header& header,
     const chain::transaction::list& transactions)
   : chain::block(header, transactions)
-{
-}
+{}
 
-bool block::from_data(uint32_t, const data_chunk& data)
-{
-    return chain::block::from_data(data);
-}
-
-bool block::from_data(uint32_t, std::istream& stream)
-{
-    return chain::block::from_data(stream);
-}
-
-bool block::from_data(uint32_t, reader& source)
-{
-    return chain::block::from_data(source);
-}
-
-data_chunk block::to_data(uint32_t) const
-{
+data_chunk block::to_data(uint32_t) const {
     return chain::block::to_data();
 }
 
-void block::to_data(uint32_t, std::ostream& stream) const
-{
+void block::to_data(uint32_t, std::ostream& stream) const {
     chain::block::to_data(stream);
 }
 
-void block::to_data(uint32_t, writer& sink) const
-{
+void block::to_data(uint32_t, writer& sink) const {
     chain::block::to_data(sink);
 }
 
-size_t block::serialized_size(uint32_t) const
-{
+size_t block::serialized_size(uint32_t) const {
     return chain::block::serialized_size();
 }
 
-block& block::operator=(chain::block&& other)
-{
-    reset();
+block& block::operator=(chain::block&& other) {
+    // reset();
     chain::block::operator=(std::move(other));
     return *this;
 }
 
-block& block::operator=(block&& other)
-{
+block& block::operator=(block&& other) {
     chain::block::operator=(std::move(other));
     return *this;
 }
 
-bool block::operator==(const chain::block& other) const
-{
+bool block::operator==(const chain::block& other) const {
     return chain::block::operator==(other);
 }
 
-bool block::operator!=(const chain::block& other) const
-{
+bool block::operator!=(const chain::block& other) const {
     return chain::block::operator!=(other);
 }
 
-bool block::operator==(const block& other) const
-{
+bool block::operator==(block const& other) const {
     return chain::block::operator==(other);
 }
 
-bool block::operator!=(const block& other) const
-{
+bool block::operator!=(block const& other) const {
     return !(*this == other);
+}
+
+
+// bool block::from_data(uint32_t, data_chunk const& data) {
+//     return chain::block::from_data(data);
+// }
+
+// bool block::from_data(uint32_t, std::istream& stream)
+// {
+//     return chain::block::from_data(stream);
+// }
+
+// bool block::from_data(uint32_t, reader& source)
+// {
+//     return chain::block::from_data(source);
+// }
+
+boost::optional<block> block::factory_from_data(uint32_t version, data_chunk const& data) {
+    // block instance;
+    // instance.from_data(version, data);
+    // return instance;
+
+    auto opt = chain::block::factory_from_data(data);
+    if ( ! opt) return {};
+    return block(std::move(*opt));
+}
+
+boost::optional<block> block::factory_from_data(uint32_t version, std::istream& stream) {
+    // block instance;
+    // instance.from_data(version, stream);
+    // return instance;
+
+    auto opt = chain::block::factory_from_data(stream);
+    if ( ! opt) return {};
+    return block(std::move(*opt));
+}
+
+boost::optional<block> block::factory_from_data(uint32_t version, reader& source) {
+    // block instance;
+    // instance.from_data(version, source);
+    // return instance;
+
+    auto opt = chain::block::factory_from_data(source);
+    if ( ! opt) return {};
+    return block(std::move(*opt));
 }
 
 } // namespace message

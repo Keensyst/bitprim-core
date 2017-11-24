@@ -39,13 +39,6 @@ public:
     typedef mini_hash short_id;
     typedef mini_hash_list short_id_list;
 
-    static compact_block factory_from_data(uint32_t version,
-        const data_chunk& data);
-    static compact_block factory_from_data(uint32_t version,
-        std::istream& stream);
-    static compact_block factory_from_data(uint32_t version,
-        reader& source);
-
     compact_block();
     compact_block(const chain::header& header, uint64_t nonce,
         const short_id_list& short_ids,
@@ -74,9 +67,10 @@ public:
     void set_transactions(const prefilled_transaction::list& value);
     void set_transactions(prefilled_transaction::list&& value);
 
-    bool from_data(uint32_t version, const data_chunk& data);
-    bool from_data(uint32_t version, std::istream& stream);
-    bool from_data(uint32_t version, reader& source);
+    // bool from_data(uint32_t version, const data_chunk& data);
+    // bool from_data(uint32_t version, std::istream& stream);
+    // bool from_data(uint32_t version, reader& source);
+
     data_chunk to_data(uint32_t version) const;
     void to_data(uint32_t version, std::ostream& stream) const;
     void to_data(uint32_t version, writer& sink) const;
@@ -90,6 +84,14 @@ public:
 
     bool operator==(const compact_block& other) const;
     bool operator!=(const compact_block& other) const;
+
+
+    static 
+    boost::optional<compact_block> factory_from_data(uint32_t version, const data_chunk& data);
+    static 
+    boost::optional<compact_block> factory_from_data(uint32_t version, std::istream& stream);
+    static 
+    boost::optional<compact_block> factory_from_data(uint32_t version, reader& source);
 
     static const std::string command;
     static const uint32_t version_minimum;

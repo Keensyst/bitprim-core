@@ -36,134 +36,177 @@ const std::string compact_block::command = "cmpctblock";
 const uint32_t compact_block::version_minimum = version::level::bip152;
 const uint32_t compact_block::version_maximum = version::level::bip152;
 
-compact_block compact_block::factory_from_data(uint32_t version,
-    const data_chunk& data)
-{
-    compact_block instance;
-    instance.from_data(version, data);
-    return instance;
-}
-
-compact_block compact_block::factory_from_data(uint32_t version,
-    std::istream& stream)
-{
-    compact_block instance;
-    instance.from_data(version, stream);
-    return instance;
-}
-
-compact_block compact_block::factory_from_data(uint32_t version,
-    reader& source)
-{
-    compact_block instance;
-    instance.from_data(version, source);
-    return instance;
-}
-
 compact_block::compact_block()
-  : header_(), nonce_(0), short_ids_(), transactions_()
-{
-}
+    : header_(), nonce_(0), short_ids_(), transactions_()
+{}
 
-compact_block::compact_block(const chain::header& header, uint64_t nonce,
-    const short_id_list& short_ids,
-    const prefilled_transaction::list& transactions)
-  : header_(header),
-    nonce_(nonce),
-    short_ids_(short_ids),
-    transactions_(transactions)
-{
-}
+compact_block::compact_block(const chain::header& header, uint64_t nonce, const short_id_list& short_ids, const prefilled_transaction::list& transactions)
+    : header_(header)
+    , nonce_(nonce)
+    , short_ids_(short_ids)
+    , transactions_(transactions)
+{}
 
-compact_block::compact_block(chain::header&& header, uint64_t nonce,
-    short_id_list&& short_ids, prefilled_transaction::list&& transactions)
-  : header_(std::move(header)),
-    nonce_(nonce),
-    short_ids_(std::move(short_ids)),
-    transactions_(std::move(transactions))
-{
-}
+compact_block::compact_block(chain::header&& header, uint64_t nonce, short_id_list&& short_ids, prefilled_transaction::list&& transactions)
+    : header_(std::move(header))
+    , nonce_(nonce)
+    , short_ids_(std::move(short_ids))
+    , transactions_(std::move(transactions))
+{}
 
 compact_block::compact_block(const compact_block& other)
-  : compact_block(other.header_, other.nonce_, other.short_ids_,
-      other.transactions_)
-{
-}
+    : compact_block(other.header_, other.nonce_, other.short_ids_, other.transactions_)
+{}
 
 compact_block::compact_block(compact_block&& other)
-  : compact_block(std::move(other.header_), other.nonce_,
-      std::move(other.short_ids_), std::move(other.transactions_))
-{
-}
+    : compact_block(std::move(other.header_), other.nonce_, std::move(other.short_ids_), std::move(other.transactions_))
+{}
 
-bool compact_block::is_valid() const
-{
+bool compact_block::is_valid() const {
     return header_.is_valid() && !short_ids_.empty() && !transactions_.empty();
 }
 
-void compact_block::reset()
-{
-    header_ = chain::header{};
-    nonce_ = 0;
-    short_ids_.clear();
-    short_ids_.shrink_to_fit();
-    transactions_.clear();
-    transactions_.shrink_to_fit();
+// void compact_block::reset() {
+//     header_ = chain::header{};
+//     nonce_ = 0;
+//     short_ids_.clear();
+//     short_ids_.shrink_to_fit();
+//     transactions_.clear();
+//     transactions_.shrink_to_fit();
+// }
+
+boost::optional<compact_block> compact_block::factory_from_data(uint32_t version, const data_chunk& data) {
+    // compact_block instance;
+    // instance.from_data(version, data);
+    // return instance;
 }
 
-bool compact_block::from_data(uint32_t version, const data_chunk& data)
-{
-    data_source istream(data);
-    return from_data(version, istream);
+boost::optional<compact_block> compact_block::factory_from_data(uint32_t version, std::istream& stream) {
+    // compact_block instance;
+    // instance.from_data(version, stream);
+    // return instance;
 }
 
-bool compact_block::from_data(uint32_t version, std::istream& stream)
-{
-    istream_reader source(stream);
-    return from_data(version, source);
-}
+boost::optional<compact_block> compact_block::factory_from_data(uint32_t version, reader& source) {
+    // compact_block instance;
+    // instance.from_data(version, source);
+    // return instance;
 
-bool compact_block::from_data(uint32_t version, reader& source)
-{
-    reset();
+    auto header_opt = chain::header::factory_from_data(source);
+    if ( ! header_opt) return {};
 
-    if (!header_.from_data(source))
-        return false;
-
-    nonce_ = source.read_8_bytes_little_endian();
+    auto nonce = source.read_8_bytes_little_endian();
     auto count = source.read_size_little_endian();
 
-    // Guard against potential for arbitary memory allocation.
-    if (count > get_max_block_size(is_bitcoin_cash()))
-        source.invalidate();
-    else
-        short_ids_.reserve(count);
 
+    // Guard against potential for arbitary memory allocation.
+    if (count > get_max_block_size(is_bitcoin_cash())) {
+        source.invalidate();
+        return {};
+    } 
+
+    short_id_list short_ids;
+    short_ids.reserve(count);
     // Order is required.
-    for (size_t id = 0; id < count && source; ++id)
-        short_ids_.push_back(source.read_mini_hash());
+    for (size_t id = 0; id < count && source; ++id) {
+        short_ids.push_back(source.read_mini_hash());
+    }
 
     count = source.read_size_little_endian();
 
+
     // Guard against potential for arbitary memory allocation.
-    if (count > get_max_block_size(is_bitcoin_cash()))
+    if (count > get_max_block_size(is_bitcoin_cash())) {
         source.invalidate();
-    else
-        transactions_.resize(count);
+        return {};
+    }
+
+    prefilled_transaction::list transactions;
+    transactions.reserve(count);
 
     // Order is required.
-    for (auto& tx : transactions_)
-        if (!tx.from_data(version, source))
-            break;
+    while (count != 0) {
+        // auto tx_opt = transaction::factory_from_data(version, source);
+        std::optional<chain::transaction> tx_opt;
 
-    if (version < compact_block::version_minimum)
+        if ( ! tx_opt) {
+            source.invalidate();
+            return {};
+        }
+        
+        transactions.push_back(std::move(*tx_opt));
+        --count;
+    }
+
+    // for (auto& tx : transactions) {
+    //     if (!tx.from_data(version, source)) break;
+    // }
+
+    if (version < compact_block::version_minimum) {
         source.invalidate();
+        return {};
+    }
 
-    if (!source)
-        reset();
+    if ( ! source) {
+        // reset();
+        return {};
+    }
 
-    return source;
+    return compact_block(std::move(header), nonce, std::move(short_ids), std::move(transactions));
 }
+
+// bool compact_block::from_data(uint32_t version, const data_chunk& data)
+// {
+//     data_source istream(data);
+//     return from_data(version, istream);
+// }
+
+// bool compact_block::from_data(uint32_t version, std::istream& stream)
+// {
+//     istream_reader source(stream);
+//     return from_data(version, source);
+// }
+
+// bool compact_block::from_data(uint32_t version, reader& source)
+// {
+//     reset();
+
+//     if ( ! header_.from_data(source)) return false;
+
+//     nonce_ = source.read_8_bytes_little_endian();
+//     auto count = source.read_size_little_endian();
+
+//     // Guard against potential for arbitary memory allocation.
+//     if (count > get_max_block_size(is_bitcoin_cash()))
+//         source.invalidate();
+//     else
+//         short_ids_.reserve(count);
+
+//     // Order is required.
+//     for (size_t id = 0; id < count && source; ++id)
+//         short_ids_.push_back(source.read_mini_hash());
+
+//     count = source.read_size_little_endian();
+
+//     // Guard against potential for arbitary memory allocation.
+//     if (count > get_max_block_size(is_bitcoin_cash()))
+//         source.invalidate();
+//     else
+//         transactions_.resize(count);
+
+//     // Order is required.
+//     for (auto& tx : transactions_)
+//         if (!tx.from_data(version, source))
+//             break;
+
+//     if (version < compact_block::version_minimum)
+//         source.invalidate();
+
+//     if (!source)
+//         reset();
+
+//     return source;
+// }
 
 data_chunk compact_block::to_data(uint32_t version) const
 {

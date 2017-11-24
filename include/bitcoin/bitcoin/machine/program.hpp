@@ -55,8 +55,7 @@ public:
     program(const chain::script& script);
 
     /// Create an instance with empty stacks (input run).
-    program(const chain::script& script, const chain::transaction& transaction,
-        uint32_t input_index, uint32_t forks);
+    program(const chain::script& script, const chain::transaction_raw& transaction, uint32_t input_index, uint32_t forks);
 
     /// Create using copied forks and copied stack (prevout run).
     program(const chain::script& script, const program& other);
@@ -68,7 +67,7 @@ public:
     bool is_valid() const;
     uint32_t forks() const;
     uint32_t input_index() const;
-    const chain::transaction& transaction() const;
+    const chain::transaction_raw& transaction() const;
 
     /// Program registers.
     op_iterator begin() const;
@@ -142,7 +141,7 @@ private:
     bool stack_to_bool() const;
 
     const chain::script& script_;
-    const chain::transaction& transaction_;
+    const chain::transaction_raw& transaction_;
     const uint32_t input_index_;
     const uint32_t forks_;
 
