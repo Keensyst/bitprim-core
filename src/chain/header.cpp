@@ -31,8 +31,7 @@
 #include <bitcoin/bitcoin/utility/istream_reader.hpp>
 #include <bitcoin/bitcoin/utility/ostream_writer.hpp>
 
-namespace libbitcoin {
-namespace chain {
+namespace libbitcoin { namespace chain {
 
 // Use system clock because we require accurate time of day.
 using wall_clock = std::chrono::system_clock;
@@ -40,8 +39,7 @@ using wall_clock = std::chrono::system_clock;
 // Constructors.
 //-----------------------------------------------------------------------------
 
-header::header(uint32_t version, hash_digest const& previous_block_hash, hash_digest const& merkle, uint32_t timestamp,
-               uint32_t bits, uint32_t nonce)
+header::header(uint32_t version, hash_digest const& previous_block_hash, hash_digest const& merkle, uint32_t timestamp, uint32_t bits, uint32_t nonce)
     : version_(version),
       previous_block_hash_(previous_block_hash),
       merkle_(merkle),
@@ -65,12 +63,12 @@ header::header(header const& other)
       validation(other.validation)
 {}
 
-// TODO: implement safe private accessor for conditional cache transfer.
-header::header(header const& other, hash_digest const& hash)
-    : header(other)
-{
-    hash_ = std::make_shared<hash_digest>(hash);    //TODO(fernando): replace shared_ptr with xxx::optional
-}
+// // TODO: implement safe private accessor for conditional cache transfer.
+// header::header(header const& other, hash_digest const& hash)
+//     : header(other)
+// {
+//     hash_ = std::make_shared<hash_digest>(hash);    //TODO(fernando): replace shared_ptr with xxx::optional
+// }
 
 // Operators.
 //-----------------------------------------------------------------------------
