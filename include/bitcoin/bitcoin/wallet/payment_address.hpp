@@ -83,6 +83,7 @@ public:
 
     /// Serializer.
     std::string encoded() const;
+    std::string encoded_cash() const;
 
     /// Accessors.
     uint8_t version() const;

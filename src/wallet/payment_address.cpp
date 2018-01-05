@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/wallet/payment_address.hpp>
-
+#include  "cashaddrenc.h"
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
@@ -104,6 +104,10 @@ bool payment_address::is_address(data_slice decoded)
 
 payment_address payment_address::from_string(const std::string& address)
 {
+    auto wallet = DecodeCashAddrDestination(DecodeCashAddrContent(address));
+    if(wallet)
+        return wallet;
+
     payment decoded;
     if (!decode_base58(decoded, address) || !is_address(decoded))
         return payment_address();
@@ -165,6 +169,11 @@ payment_address::operator const short_hash&() const
 std::string payment_address::encoded() const
 {
     return encode_base58(wrap(version_, hash_));
+}
+
+std::string payment_address::encoded_cash() const
+{
+    return EncodeCashAddr(*this);
 }
 
 // Accessors.

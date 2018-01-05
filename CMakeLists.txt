@@ -469,6 +469,8 @@ set(bitprim_core_sources
         src/wallet/parse_encrypted_keys/parse_encrypted_token.cpp
         src/wallet/parse_encrypted_keys/parse_encrypted_token.hpp
         src/wallet/payment_address.cpp
+        src/wallet/cashaddr.cpp
+        src/wallet/cashaddrenc.cpp
         
         src/wallet/qrcode.cpp
         src/wallet/select_outputs.cpp
