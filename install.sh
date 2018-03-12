@@ -41,13 +41,13 @@ ICU_ARCHIVE="icu4c-55_1-src.tgz"
 
 # ZLib archive.
 #------------------------------------------------------------------------------
-ZLIB_URL="http://zlib.net/zlib-1.2.8.tar.xz"
-ZLIB_ARCHIVE="zlib-1.2.8.tar.xz"
+ZLIB_URL="https://github.com/madler/zlib/archive/v1.2.9.tar.gz"
+ZLIB_ARCHIVE="v1.2.9.tar.gz"
 
 # PNG archive.
 #------------------------------------------------------------------------------
-PNG_URL="http://downloads.sourceforge.net/project/libpng/libpng16/1.6.23/libpng-1.6.23.tar.xz"
-PNG_ARCHIVE="libpng-1.6.23.tar.xz"
+PNG_URL="http://downloads.sourceforge.net/project/libpng/libpng16/older-releases/1.6.29/libpng-1.6.29.tar.xz"
+PNG_ARCHIVE="libpng-1.6.29.tar.xz"
 
 # QREncode archive.
 #------------------------------------------------------------------------------
@@ -56,8 +56,8 @@ QRENCODE_ARCHIVE="qrencode-3.4.4.tar.bz2"
 
 # Boost archive.
 #------------------------------------------------------------------------------
-BOOST_URL="http://downloads.sourceforge.net/project/boost/boost/1.56.0/boost_1_56_0.tar.bz2"
-BOOST_ARCHIVE="boost_1_56_0.tar.bz2"
+BOOST_URL="http://downloads.sourceforge.net/project/boost/boost/1.57.0/boost_1_57_0.tar.bz2"
+BOOST_ARCHIVE="boost_1_57_0.tar.bz2"
 
 
 # Initialize the build environment.
@@ -72,8 +72,6 @@ SEQUENTIAL=1
 OS=`uname -s`
 if [[ $PARALLEL ]]; then
     echo "Using shell-defined PARALLEL value."
-elif [[ $TRAVIS == true ]]; then
-    PARALLEL=$SEQUENTIAL
 elif [[ $OS == Linux ]]; then
     PARALLEL=`nproc`
 elif [[ ($OS == Darwin) || ($OS == OpenBSD) ]]; then
@@ -225,6 +223,7 @@ BOOST_OPTIONS=(
 "--with-filesystem" \
 "--with-iostreams" \
 "--with-locale" \
+"--with-log" \
 "--with-program_options" \
 "--with-regex" \
 "--with-system" \
@@ -434,13 +433,14 @@ build_from_tarball()
 
     # Use the suffixed archive name as the extraction directory.
     local EXTRACT="build-$ARCHIVE"
-    create_directory $EXTRACT
-    push_directory $EXTRACT
+    push_directory "$BUILD_DIR"
+    create_directory "$EXTRACT"
+    push_directory "$EXTRACT"
 
     # Extract the source locally.
     wget --output-document $ARCHIVE $URL
     tar --extract --file $ARCHIVE --$COMPRESSION --strip-components=1
-    push_directory $PUSH_DIR
+    push_directory "$PUSH_DIR"
 
     # Enable static only zlib build.
     if [[ $ARCHIVE == $ZLIB_ARCHIVE ]]; then
@@ -466,6 +466,8 @@ build_from_tarball()
     # Restore flags to prevent side effects.
     export LDFLAGS=$SAVE_LDFLAGS
     export CPPFLAGS=$SAVE_LCPPFLAGS
+
+    pop_directory
 }
 
 # Because boost ICU detection assumes in incorrect ICU path.
@@ -551,8 +553,9 @@ build_from_tarball_boost()
 
     # Use the suffixed archive name as the extraction directory.
     local EXTRACT="build-$ARCHIVE"
-    create_directory $EXTRACT
-    push_directory $EXTRACT
+    push_directory "$BUILD_DIR"
+    create_directory "$EXTRACT"
+    push_directory "$EXTRACT"
 
     # Extract the source locally.
     wget --output-document $ARCHIVE $URL
@@ -616,11 +619,14 @@ build_from_tarball_boost()
         "$@"
 
     pop_directory
+    pop_directory
 }
 
 # Standard build from github.
 build_from_github()
 {
+    push_directory "$BUILD_DIR"
+
     local ACCOUNT=$1
     local REPO=$2
     local BRANCH=$3
@@ -632,14 +638,15 @@ build_from_github()
     display_message "Download $FORK/$BRANCH"
 
     # Clone the repository locally.
-    git clone --branch $BRANCH --single-branch "https://github.com/$FORK"
+    git clone --depth 1 --branch $BRANCH --single-branch "https://github.com/$FORK"
 
     # Join generated and command line options.
     local CONFIGURATION=("${OPTIONS[@]}" "$@")
 
     # Build the local repository clone.
-    push_directory $REPO
+    push_directory "$REPO"
     make_current_directory $JOBS "${CONFIGURATION[@]}"
+    pop_directory
     pop_directory
 }
 
@@ -672,14 +679,14 @@ build_from_travis()
 
     # The primary build is not downloaded if we are running in Travis.
     if [[ $TRAVIS == true ]]; then
-        push_directory ".."
         build_from_local "Local $TRAVIS_REPO_SLUG" $JOBS "${OPTIONS[@]}" "$@"
         make_tests $JOBS
-        pop_directory
     else
         build_from_github $ACCOUNT $REPO $BRANCH $JOBS "${OPTIONS[@]}" "$@"
-        push_directory $REPO
+        push_directory "$BUILD_DIR"
+        push_directory "$REPO"
         make_tests $JOBS
+        pop_directory
         pop_directory
     fi
 }
@@ -690,12 +697,12 @@ build_from_travis()
 build_all()
 {
     build_from_tarball $ICU_URL $ICU_ARCHIVE gzip source $PARALLEL "$BUILD_ICU" "${ICU_OPTIONS[@]}" "$@"
-    build_from_tarball $ZLIB_URL $ZLIB_ARCHIVE xz . $PARALLEL "$BUILD_ZLIB" "${ZLIB_OPTIONS[@]}" "$@"
+    build_from_tarball $ZLIB_URL $ZLIB_ARCHIVE gzip . $PARALLEL "$BUILD_ZLIB" "${ZLIB_OPTIONS[@]}" "$@"
     build_from_tarball $PNG_URL $PNG_ARCHIVE xz . $PARALLEL "$BUILD_PNG" "${PNG_OPTIONS[@]}" "$@"
     build_from_tarball $QRENCODE_URL $QRENCODE_ARCHIVE bzip2 . $PARALLEL "$BUILD_QRENCODE" "${QRENCODE_OPTIONS[@]}" "$@"
     build_from_tarball_boost $BOOST_URL $BOOST_ARCHIVE bzip2 . $PARALLEL "$BUILD_BOOST" "${BOOST_OPTIONS[@]}"
-    build_from_github bitprim secp256k1 version4 $PARALLEL ${SECP256K1_OPTIONS[@]} "$@"
-    build_from_travis bitprim bitprim-core master $PARALLEL ${BITCOIN_OPTIONS[@]} "$@"
+    build_from_github libbitcoin secp256k1 version4 $PARALLEL ${SECP256K1_OPTIONS[@]} "$@"
+    build_from_travis libbitcoin libbitcoin version3 $PARALLEL ${BITCOIN_OPTIONS[@]} "$@"
 }
 
 
@@ -704,5 +711,5 @@ build_all()
 create_directory "$BUILD_DIR"
 push_directory "$BUILD_DIR"
 initialize_git
-time build_all "${CONFIGURE_OPTIONS[@]}"
 pop_directory
+time build_all "${CONFIGURE_OPTIONS[@]}"

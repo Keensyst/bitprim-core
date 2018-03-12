@@ -1,27 +1,27 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/utility/binary.hpp>
 
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <bitcoin/bitcoin/math/limits.hpp>
 #include <bitcoin/bitcoin/constants.hpp>
 #include <bitcoin/bitcoin/utility/assert.hpp>
 #include <bitcoin/bitcoin/utility/endian.hpp>
@@ -58,12 +58,21 @@ binary::binary(const std::string& bit_string)
     std::stringstream(bit_string) >> *this;
 }
 
+binary::binary(size_type size, uint32_t number)
+  : binary(size, to_little_endian(number))
+{
+}
+
 binary::binary(size_type size, data_slice blocks)
   : binary()
 {
     // Copy blocks
     blocks_.resize(blocks.size());
-    std::copy(blocks.begin(), blocks.end(), blocks_.begin());
+
+    if (blocks_.empty())
+        return;
+
+    std::copy_n(blocks.begin(), blocks.size(), blocks_.begin());
 
     // Pad with 00 for safety.
     while (blocks_.size() * bits_per_block < size)
@@ -80,11 +89,11 @@ void binary::resize(size_type size)
 
     if (offset > 0)
     {
-        BITCOIN_ASSERT((bits_per_block - offset) <= max_uint8);
+        // This subtraction is guarded above.
         final_block_excess_ = static_cast<uint8_t>(bits_per_block - offset);
-
+        const auto last = safe_subtract(blocks_.size(), size_t(1));
         uint8_t mask = 0xFF << final_block_excess_;
-        blocks_[blocks_.size() - 1] = blocks_[blocks_.size() - 1] & mask;
+        blocks_[last] &= mask;
     }
 }
 
@@ -112,7 +121,9 @@ std::string binary::encoded() const
 
 binary::size_type binary::size() const
 {
-    return (blocks_.size() * bits_per_block) - final_block_excess_;
+    const size_type base_bit_size = blocks_.size() * bits_per_block;
+    return safe_subtract(base_bit_size,
+        static_cast<size_type>(final_block_excess_));
 }
 
 void binary::append(const binary& post)
@@ -123,23 +134,21 @@ void binary::append(const binary& post)
     // overkill for byte alignment
     binary duplicate(post.size(), post.blocks());
     duplicate.shift_right(offset);
-
     resize(size() + post.size());
     data_chunk post_shift_blocks = duplicate.blocks();
+
     for (size_type i = 0; i < post_shift_blocks.size(); i++)
-    {
-        blocks_[block_offset + i] = blocks_[block_offset + i] | post_shift_blocks[i];
-    }
+        blocks_[block_offset + i] = blocks_[block_offset + i] |
+            post_shift_blocks[i];
 }
 
 void binary::prepend(const binary& prior)
 {
     shift_right(prior.size());
     data_chunk prior_blocks = prior.blocks();
+
     for (size_type i = 0; i < prior_blocks.size(); i++)
-    {
         blocks_[i] = blocks_[i] | prior_blocks[i];
-    }
 }
 
 void binary::shift_left(size_type distance)
@@ -147,6 +156,7 @@ void binary::shift_left(size_type distance)
     const size_type initial_size = size();
     const size_type initial_block_count = blocks_.size();
     size_type destination_size = 0;
+
     if (distance < initial_size)
         destination_size = initial_size - distance;
 
@@ -160,14 +170,11 @@ void binary::shift_left(size_type distance)
         uint8_t trailing_bits = 0x00;
 
         if ((offset != 0) && ((block_offset + i + 1) < initial_block_count))
-        {
-            trailing_bits = blocks_[block_offset + i + 1] >> (bits_per_block - offset);
-        }
+            trailing_bits = blocks_[block_offset + i + 1] >>
+                (bits_per_block - offset);
 
         if ((block_offset + i) < initial_block_count)
-        {
             leading_bits = blocks_[block_offset + i] << offset;
-        }
 
         blocks_[i] = leading_bits | trailing_bits;
     }
@@ -182,12 +189,12 @@ void binary::shift_right(size_type distance)
     const size_type offset = distance % bits_per_block;
     const size_type offset_blocks = distance / bits_per_block;
     const size_type destination_size = initial_size + distance;
+
     for (size_type i = 0; i < offset_blocks; i++)
-    {
         blocks_.insert(blocks_.begin(), 0x00);
-    }
 
     uint8_t previous = 0x00;
+
     for (size_type i = 0; i < initial_block_count; i++)
     {
         uint8_t current = blocks_[offset_blocks + i];
@@ -200,23 +207,18 @@ void binary::shift_right(size_type distance)
     resize(destination_size);
 
     if (offset_blocks + initial_block_count < blocks_.size())
-    {
         blocks_[blocks_.size() - 1] = previous << (bits_per_block - offset);
-    }
 }
 
 binary binary::substring(size_type start, size_type length) const
 {
     size_type current_size = size();
+
     if (start > current_size)
-    {
         start = current_size;
-    }
 
     if ((length == max_size_t) || ((start + length) > current_size))
-    {
         length = current_size - start;
-    }
 
     binary result(current_size, blocks_);
     result.shift_left(start);
@@ -251,6 +253,7 @@ bool binary::operator==(const binary& other) const
         return false;
 
     const auto self = *this;
+
     for (binary::size_type i = 0; i < size(); ++i)
         if (self[i] != other[i])
             return false;
@@ -317,13 +320,9 @@ std::istream& operator>>(std::istream& in, binary& to)
 std::ostream& operator<<(std::ostream& out, const binary& of)
 {
     for (binary::size_type i = 0; i < of.size(); ++i)
-        if (of[i])
-            out << '1';
-        else
-            out << '0';
+        out << (of[i] ? '1' : '0');
 
     return out;
 }
 
 } // namespace libbitcoin
-

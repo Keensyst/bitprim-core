@@ -1,25 +1,25 @@
-/*
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+/**
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/filter_load.hpp>
 
-#include <boost/iostreams/stream.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
+#include <bitcoin/bitcoin/message/messages.hpp>
 #include <bitcoin/bitcoin/message/version.hpp>
 #include <bitcoin/bitcoin/utility/assert.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
@@ -58,26 +58,57 @@ filter_load filter_load::factory_from_data(uint32_t version,
     return instance;
 }
 
+filter_load::filter_load()
+  : filter_(), hash_functions_(0), tweak_(0), flags_(0x00)
+{
+}
+
+filter_load::filter_load(const data_chunk& filter, uint32_t hash_functions,
+    uint32_t tweak, uint8_t flags)
+  : filter_(filter), hash_functions_(hash_functions), tweak_(tweak),
+    flags_(flags)
+{
+}
+
+filter_load::filter_load(data_chunk&& filter, uint32_t hash_functions,
+    uint32_t tweak, uint8_t flags)
+  : filter_(std::move(filter)), hash_functions_(hash_functions), tweak_(tweak),
+    flags_(flags)
+{
+}
+
+filter_load::filter_load(const filter_load& other)
+  : filter_load(other.filter_, other.hash_functions_,
+      other.tweak_, other.flags_)
+{
+}
+
+filter_load::filter_load(filter_load&& other)
+  : filter_load(std::move(other.filter_), other.hash_functions_, other.tweak_,
+      other.flags_)
+{
+}
+
 bool filter_load::is_valid() const
 {
-    return !filter.empty()
-        || (hash_functions != 0)
-        || (tweak != 0)
-        || (flags != 0x00);
+    return !filter_.empty()
+        || (hash_functions_ != 0)
+        || (tweak_ != 0)
+        || (flags_ != 0x00);
 }
 
 void filter_load::reset()
 {
-    filter.clear();
-    filter.shrink_to_fit();
-    hash_functions = 0;
-    tweak = 0;
-    flags = 0x00;
+    filter_.clear();
+    filter_.shrink_to_fit();
+    hash_functions_ = 0;
+    tweak_ = 0;
+    flags_ = 0x00;
 }
 
 bool filter_load::from_data(uint32_t version, const data_chunk& data)
 {
-    boost::iostreams::stream<byte_source<data_chunk>> istream(data);
+    data_source istream(data);
     return from_data(version, istream);
 }
 
@@ -91,34 +122,39 @@ bool filter_load::from_data(uint32_t version, reader& source)
 {
     reset();
 
-    const auto  insufficent_version = (version < filter_load::version_minimum);
-    const auto size = source.read_variable_uint_little_endian();
-    BITCOIN_ASSERT(size <= bc::max_size_t);
-    const auto filter_size = static_cast<size_t>(size);
-    bool result = static_cast<bool>(source);
+    const auto size = source.read_size_little_endian();
 
-    if (result)
-    {
-        filter = source.read_data(filter_size);
-        hash_functions = source.read_4_bytes_little_endian();
-        tweak = source.read_4_bytes_little_endian();
-        flags = source.read_byte();
-        result = source && (filter.size() == filter_size);
-    }
+    if (size > max_filter_load)
+        source.invalidate();
+    else
+        filter_ = source.read_bytes(size);
 
-    if (!result || insufficent_version)
+    hash_functions_ = source.read_4_bytes_little_endian();
+
+    if (hash_functions_ > max_filter_functions)
+        source.invalidate();
+
+    tweak_ = source.read_4_bytes_little_endian();
+    flags_ = source.read_byte();
+
+    if (version < filter_load::version_minimum)
+        source.invalidate();
+
+    if (!source)
         reset();
 
-    return result && !insufficent_version;
+    return source;
 }
 
 data_chunk filter_load::to_data(uint32_t version) const
 {
     data_chunk data;
-    boost::iostreams::stream<byte_sink<data_chunk>> ostream(data);
+    const auto size = serialized_size(version);
+    data.reserve(size);
+    data_sink ostream(data);
     to_data(version, ostream);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -130,37 +166,90 @@ void filter_load::to_data(uint32_t version, std::ostream& stream) const
 
 void filter_load::to_data(uint32_t version, writer& sink) const
 {
-    sink.write_variable_uint_little_endian(filter.size());
-    sink.write_data(filter);
-    sink.write_4_bytes_little_endian(hash_functions);
-    sink.write_4_bytes_little_endian(tweak);
-    sink.write_byte(flags);
+    sink.write_variable_little_endian(filter_.size());
+    sink.write_bytes(filter_);
+    sink.write_4_bytes_little_endian(hash_functions_);
+    sink.write_4_bytes_little_endian(tweak_);
+    sink.write_byte(flags_);
 }
 
-uint64_t filter_load::serialized_size(uint32_t version) const
+size_t filter_load::serialized_size(uint32_t version) const
 {
-    return 1 + 4 + 4 + variable_uint_size(filter.size()) + filter.size();
+    return 1u + 4u + 4u + message::variable_uint_size(filter_.size()) +
+        filter_.size();
 }
 
-bool operator==(const filter_load& left,
-    const filter_load& right)
+data_chunk& filter_load::filter()
 {
-    bool result = (left.filter.size() == right.filter.size()) &&
-        (left.hash_functions == right.hash_functions) &&
-        (left.tweak == right.tweak) &&
-        (left.flags == right.flags);
-
-    for (data_chunk::size_type i = 0; i < left.filter.size() && result; i++)
-        result = (left.filter[i] == right.filter[i]);
-
-    return result;
+    return filter_;
 }
 
-bool operator!=(const filter_load& left,
-    const filter_load& right)
+const data_chunk& filter_load::filter() const
 {
-    return !(left == right);
+    return filter_;
 }
 
-} // end message
-} // end libbitcoin
+void filter_load::set_filter(const data_chunk& value)
+{
+    filter_ = value;
+}
+
+void filter_load::set_filter(data_chunk&& value)
+{
+    filter_ = std::move(value);
+}
+
+uint32_t filter_load::hash_functions() const
+{
+    return hash_functions_;
+}
+
+void filter_load::set_hash_functions(uint32_t value)
+{
+    hash_functions_ = value;
+}
+
+uint32_t filter_load::tweak() const
+{
+    return tweak_;
+}
+
+void filter_load::set_tweak(uint32_t value)
+{
+    tweak_ = value;
+}
+
+uint8_t filter_load::flags() const
+{
+    return flags_;
+}
+
+void filter_load::set_flags(uint8_t value)
+{
+    flags_ = value;
+}
+
+filter_load& filter_load::operator=(filter_load&& other)
+{
+    filter_ = std::move(other.filter_);
+    hash_functions_ = other.hash_functions_;
+    tweak_ = other.tweak_;
+    flags_ = other.flags_;
+    return *this;
+}
+
+bool filter_load::operator==(const filter_load& other) const
+{
+    return (filter_ == other.filter_)
+        && (hash_functions_ == other.hash_functions_)
+        && (tweak_ == other.tweak_)
+        && (flags_ == other.flags_);
+}
+
+bool filter_load::operator!=(const filter_load& other) const
+{
+    return !(*this == other);
+}
+
+} // namespace message
+} // namespace libbitcoin

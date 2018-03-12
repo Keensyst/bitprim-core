@@ -13,7 +13,7 @@
 AC_PREREQ([2.65])
 
 # Process command-line arguments and perform initialization and verification.
-AC_INIT([libbitcoin], [3.0.0], [eric@voskuil.org])
+AC_INIT([libbitcoin], [3.3.0], [eric@voskuil.org])
 
 # Do compilation tests.
 AC_LANG(C++)
@@ -144,22 +144,22 @@ AC_ARG_ENABLE([ndebug],
 AC_MSG_RESULT([$enable_ndebug])
 AS_CASE([${enable_ndebug}], [yes], AC_DEFINE([NDEBUG]))
 
-# Inherit --enable-shared and define BOOST_TEST_DYN_LINK.
+# Inherit --enable-shared and define BOOST_ALL_DYN_LINK.
 #------------------------------------------------------------------------------
-AS_CASE([${enable_shared}], [yes], AC_DEFINE([BOOST_TEST_DYN_LINK]))
+AS_CASE([${enable_shared}], [yes], AC_DEFINE([BOOST_ALL_DYN_LINK]))
 
 
 # Check dependencies.
 #==============================================================================
-# Require Boost of at least version 1.56.0 and output ${boost_CPPFLAGS/LDFLAGS}.
+# Require Boost of at least version 1.57.0 and output ${boost_CPPFLAGS/LDFLAGS}.
 #------------------------------------------------------------------------------
 AS_CASE([${CC}], [*],
-    [AX_BOOST_BASE([1.56.0],
+    [AX_BOOST_BASE([1.57.0],
         [AC_SUBST([boost_CPPFLAGS], [${BOOST_CPPFLAGS}])
          AC_SUBST([boost_LDFLAGS], [${BOOST_LDFLAGS}])
          AC_MSG_NOTICE([boost_CPPFLAGS : ${boost_CPPFLAGS}])
          AC_MSG_NOTICE([boost_LDFLAGS : ${boost_LDFLAGS}])],
-        [AC_MSG_ERROR([Boost 1.56.0 or later is required but was not found.])])])
+        [AC_MSG_ERROR([Boost 1.57.0 or later is required but was not found.])])])
 
 AX_BOOST_CHRONO
 AC_SUBST([boost_chrono_LIBS], [${BOOST_CHRONO_LIB}])
@@ -180,6 +180,10 @@ AC_MSG_NOTICE([boost_iostreams_LIBS : ${boost_iostreams_LIBS}])
 AX_BOOST_LOCALE
 AC_SUBST([boost_locale_LIBS], [${BOOST_LOCALE_LIB}])
 AC_MSG_NOTICE([boost_locale_LIBS : ${boost_locale_LIBS}])
+
+AX_BOOST_LOG
+AC_SUBST([boost_log_LIBS], [${BOOST_LOG_LIB}])
+AC_MSG_NOTICE([boost_log_LIBS : ${boost_log_LIBS}])
 
 AX_BOOST_PROGRAM_OPTIONS
 AC_SUBST([boost_program_options_LIBS], [${BOOST_PROGRAM_OPTIONS_LIB}])
@@ -242,11 +246,11 @@ AS_CASE([${host_os}], [*linux*],
         [AC_MSG_ERROR([dl library is required but was not found.])])],
     [AC_SUBST([dl_LIBS], [])])
 
-# Require png of at least version 1.6.23 and output ${png_CPPFLAGS/LIBS/PKG}.
+# Require png of at least version 1.6.29 and output ${png_CPPFLAGS/LIBS/PKG}.
 #------------------------------------------------------------------------------
 AS_CASE([${with_png}], [yes],
-    [PKG_CHECK_MODULES([png], [libpng >= 1.6.23])
-     AC_SUBST([png_PKG], ['libpng >= 1.6.23'])
+    [PKG_CHECK_MODULES([png], [libpng >= 1.6.29])
+     AC_SUBST([png_PKG], ['libpng >= 1.6.29'])
      AC_SUBST([png_CPPFLAGS], [${png_CFLAGS}])
      AC_MSG_NOTICE([png_CPPFLAGS : ${png_CPPFLAGS}])
      AC_MSG_NOTICE([png_LIBS : ${png_LIBS}])],
@@ -309,9 +313,7 @@ AS_CASE([${CC}], [*],
 #------------------------------------------------------------------------------
 AS_CASE([${CC}], [*],
     [AX_CHECK_COMPILE_FLAG([-Wno-long-long],
-        [CFLAGS="$CFLAGS -Wno-long-long"],
-        [AX_CHECK_COMPILE_FLAG([-pedantic],
-            [CFLAGS="$CFLAGS -pedantic"])])])
+        [CFLAGS="$CFLAGS -Wno-long-long"])])
 
 # Conform to style.
 #------------------------------------------------------------------------------

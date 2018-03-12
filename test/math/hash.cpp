@@ -1,21 +1,20 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "hash.hpp"
 
@@ -54,16 +53,16 @@ BOOST_AUTO_TEST_CASE(ripemd_hash_test)
 
 BOOST_AUTO_TEST_CASE(sha256_hash_test)
 {
-    for (const auto& result: sha256_tests)
-    {
-        data_chunk data;
-        BOOST_REQUIRE(decode_base16(data, result.input));
-        BOOST_REQUIRE_EQUAL(encode_base16(sha256_hash(data)), result.result);
-    }
+    const data_chunk chunk{ 'd', 'a', 't', 'a' };
+    const auto hash = sha256_hash(chunk);
+    BOOST_REQUIRE_EQUAL(encode_base16(hash), "3a6eb0790f39ac87c94f3856b2dd2c5d110e6811602261a9a923d3bb23adc8b7");
+}
 
-    const auto genesis = chain::block::genesis_mainnet();
-    const auto genesis_hash = genesis.header.hash();
-    BOOST_REQUIRE_EQUAL(encode_hash(genesis_hash), "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f");
+BOOST_AUTO_TEST_CASE(sha512_hash_test)
+{
+    const data_chunk chunk{ 'd', 'a', 't', 'a' };
+    const auto long_hash = sha512_hash(chunk);
+    BOOST_REQUIRE_EQUAL(encode_base16(long_hash), "77c7ce9a5d86bb386d443bb96390faa120633158699c8844c30b13ab0bf92760b7e4416aea397db91b4ac0e5dd56b8ef7e4b066162ab1fdc088319ce6defc876");
 }
 
 BOOST_AUTO_TEST_CASE(hmac_sha256_hash_test)
@@ -80,13 +79,6 @@ BOOST_AUTO_TEST_CASE(hmac_sha512_hash_test)
     const data_chunk key{ 'k', 'e', 'y' };
     const auto long_hash = hmac_sha512_hash(chunk, key);
     BOOST_REQUIRE_EQUAL(encode_base16(long_hash), "3c5953a18f7303ec653ba170ae334fafa08e3846f2efe317b87efce82376253cb52a8c31ddcde5a3a2eee183c2b34cb91f85e64ddbc325f7692b199473579c58");
-}
-
-BOOST_AUTO_TEST_CASE(sha512_hash_test)
-{
-    const data_chunk chunk{ 'd', 'a', 't', 'a' };
-    const auto long_hash = sha512_hash(chunk);
-    BOOST_REQUIRE_EQUAL(encode_base16(long_hash), "77c7ce9a5d86bb386d443bb96390faa120633158699c8844c30b13ab0bf92760b7e4416aea397db91b4ac0e5dd56b8ef7e4b066162ab1fdc088319ce6defc876");
 }
 
 BOOST_AUTO_TEST_CASE(pkcs5_pbkdf2_hmac_sha512_test)

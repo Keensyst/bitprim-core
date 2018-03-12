@@ -1,26 +1,27 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/wallet/hd_private.hpp>
 
 #include <cstdint>
+#include <iostream>
 #include <string>
+#include <utility>
 #include <boost/program_options.hpp>
 #include <bitcoin/bitcoin/constants.hpp>
 #include <bitcoin/bitcoin/define.hpp>
@@ -28,19 +29,24 @@
 #include <bitcoin/bitcoin/math/checksum.hpp>
 #include <bitcoin/bitcoin/math/elliptic_curve.hpp>
 #include <bitcoin/bitcoin/math/hash.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
 #include <bitcoin/bitcoin/utility/assert.hpp>
+#include <bitcoin/bitcoin/utility/container_source.hpp>
 #include <bitcoin/bitcoin/utility/data.hpp>
-#include <bitcoin/bitcoin/utility/deserializer.hpp>
 #include <bitcoin/bitcoin/utility/endian.hpp>
+#include <bitcoin/bitcoin/utility/istream_reader.hpp>
 #include <bitcoin/bitcoin/utility/serializer.hpp>
 #include <bitcoin/bitcoin/wallet/ec_private.hpp>
 #include <bitcoin/bitcoin/wallet/ec_public.hpp>
 
 namespace libbitcoin {
 namespace wallet {
-    
+
 const uint64_t hd_private::mainnet = to_prefixes(76066276,
     hd_public::mainnet);
+
+const uint64_t hd_private::testnet = to_prefixes(70615956,
+    hd_public::testnet);
 
 hd_private::hd_private()
   : hd_public(), secret_(null_hash)
@@ -112,7 +118,7 @@ hd_private hd_private::from_seed(data_slice seed, uint64_t prefixes)
 
     // The key is invalid if parse256(IL) >= n or 0:
     if (!verify(intermediate.left))
-        return hd_private();
+        return{};
 
     const auto master = hd_lineage
     {
@@ -133,19 +139,20 @@ hd_private hd_private::from_key(const hd_key& key, uint32_t public_prefix)
 
 hd_private hd_private::from_key(const hd_key& key, uint64_t prefixes)
 {
-    // TODO: convert to istream_reader
-    auto stream = make_deserializer(key.begin(), key.end());
-    const auto prefix = stream.read_big_endian<uint32_t>();
-    const auto depth = stream.read_big_endian<uint8_t>();
-    const auto parent = stream.read_big_endian<uint32_t>();
-    const auto child = stream.read_big_endian<uint32_t>();
-    const auto chain = stream.read_bytes<hd_chain_code_size>();
-    /*const auto padding =*/ stream.read_big_endian<uint8_t>();
-    const auto secret = stream.read_bytes<ec_secret_size>();
+    stream_source<hd_key> istream(key);
+    istream_reader reader(istream);
+
+    const auto prefix = reader.read_4_bytes_big_endian();
+    const auto depth = reader.read_byte();
+    const auto parent = reader.read_4_bytes_big_endian();
+    const auto child = reader.read_4_bytes_big_endian();
+    const auto chain = reader.read_forward<hd_chain_code_size>();
+    reader.read_byte();
+    const auto secret = reader.read_forward<ec_secret_size>();
 
     // Validate the prefix against the provided value.
     if (prefix != to_prefix(prefixes))
-        return hd_private();
+        return{};
 
     const hd_lineage lineage
     {
@@ -163,7 +170,7 @@ hd_private hd_private::from_string(const std::string& encoded,
 {
     hd_key key;
     if (!decode_base58(key, encoded))
-        return hd_private();
+        return{};
 
     return hd_private(from_key(key, public_prefix));
 }
@@ -173,7 +180,7 @@ hd_private hd_private::from_string(const std::string& encoded,
 {
     hd_key key;
     return decode_base58(key, encoded) ? hd_private(key, prefixes) :
-        hd_private();
+        hd_private{};
 }
 
 // Cast operators.
@@ -227,7 +234,7 @@ hd_key hd_private::to_hd_key() const
 
 hd_public hd_private::to_public() const
 {
-    return hd_public(((hd_public)*this).to_hd_key(), 
+    return hd_public(((hd_public)*this).to_hd_key(),
         hd_public::to_prefix(lineage_.prefixes));
 }
 
@@ -244,10 +251,10 @@ hd_private hd_private::derive_private(uint32_t index) const
     // The child key ki is (parse256(IL) + kpar) mod n:
     auto child = secret_;
     if (!ec_add(child, intermediate.left))
-        return hd_private();
+        return{};
 
     if (lineage_.depth == max_uint8)
-        return hd_private();
+        return{};
 
     const hd_lineage lineage
     {
@@ -268,13 +275,9 @@ hd_public hd_private::derive_public(uint32_t index) const
 // Operators.
 // ----------------------------------------------------------------------------
 
-hd_private& hd_private::operator=(const hd_private& other)
+hd_private& hd_private::operator=(hd_private other)
 {
-    secret_ = other.secret_;
-    valid_ = other.valid_;
-    chain_ = other.chain_;
-    lineage_ = other.lineage_;
-    point_ = other.point_;
+    swap(*this, other);
     return *this;
 }
 
@@ -317,6 +320,16 @@ std::ostream& operator<<(std::ostream& out, const hd_private& of)
 {
     out << of.encoded();
     return out;
+}
+
+// friend function, see: stackoverflow.com/a/5695855/1172329
+void swap(hd_private& left, hd_private& right)
+{
+    using std::swap;
+
+    // Must be unqualified (no std namespace).
+    swap(static_cast<hd_public&>(left), static_cast<hd_public&>(right));
+    swap(left.secret_, right.secret_);
 }
 
 } // namespace wallet

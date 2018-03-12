@@ -1,26 +1,25 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/inventory_vector.hpp>
 
 #include <cstdint>
-#include <boost/iostreams/stream.hpp>
+#include <string>
 #include <bitcoin/bitcoin/message/inventory.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/container_source.hpp>
@@ -34,16 +33,17 @@ uint32_t inventory_vector::to_number(type_id inventory_type)
 {
     switch (inventory_type)
     {
-        case type_id::error:
-        case type_id::none:
-        default:
-            return 0;
-        case type_id::transaction:
-            return 1;
-        case type_id::block:
-            return 2;
         case type_id::compact_block:
             return 4;
+        case type_id::block:
+            return 2;
+        case type_id::filtered_block:
+            return 3;
+        case type_id::transaction:
+            return 1;
+        case type_id::error:
+        default:
+            return 0;
     }
 }
 
@@ -51,16 +51,35 @@ inventory_vector::type_id inventory_vector::to_type(uint32_t value)
 {
     switch (value)
     {
-        case 0:
-            return type_id::error;
-        case 1:
-            return type_id::transaction;
-        case 2:
-            return type_id::block;
         case 4:
             return type_id::compact_block;
+        case 3:
+            return type_id::filtered_block;
+        case 2:
+            return type_id::block;
+        case 1:
+            return type_id::transaction;
+        case 0:
         default:
-            return type_id::none;
+            return type_id::error;
+    }
+}
+
+std::string inventory_vector::to_string(type_id inventory_type)
+{
+        switch (inventory_type)
+    {
+        case type_id::compact_block:
+            return "compact_block";
+        case type_id::block:
+            return "block";
+        case type_id::filtered_block:
+            return "filtered_block";
+        case type_id::transaction:
+            return "transaction";
+        case type_id::error:
+        default:
+            return "error";
     }
 }
 
@@ -88,15 +107,40 @@ inventory_vector inventory_vector::factory_from_data(uint32_t version,
     return instance;
 }
 
+inventory_vector::inventory_vector()
+  : inventory_vector(type_id::error, null_hash)
+{
+}
+
+inventory_vector::inventory_vector(type_id type, const hash_digest& hash)
+  : type_(type), hash_(hash)
+{
+}
+
+inventory_vector::inventory_vector(type_id type, hash_digest&& hash)
+  : type_(type), hash_(std::move(hash))
+{
+}
+
+inventory_vector::inventory_vector(const inventory_vector& other)
+  : inventory_vector(other.type_, other.hash_)
+{
+}
+
+inventory_vector::inventory_vector(inventory_vector&& other)
+  : inventory_vector(other.type_, std::move(other.hash_))
+{
+}
+
 bool inventory_vector::is_valid() const
 {
-    return (type != inventory::type_id::error) || (hash != null_hash);
+    return (type_ != type_id::error) || (hash_ != null_hash);
 }
 
 void inventory_vector::reset()
 {
-    type = inventory::type_id::error;
-    hash.fill(0);
+    type_ = type_id::error;
+    hash_.fill(0);
 }
 
 bool inventory_vector::from_data(uint32_t version,
@@ -118,24 +162,25 @@ bool inventory_vector::from_data(uint32_t version,
 {
     reset();
 
-    uint32_t raw_type = source.read_4_bytes_little_endian();
-    type = inventory_vector::to_type(raw_type);
-    hash = source.read_hash();
-    bool result = static_cast<bool>(source);
+    const auto raw_type = source.read_4_bytes_little_endian();
+    type_ = inventory_vector::to_type(raw_type);
+    hash_ = source.read_hash();
 
-    if (!result)
+    if (!source)
         reset();
 
-    return result;
+    return source;
 }
 
 data_chunk inventory_vector::to_data(uint32_t version) const
 {
     data_chunk data;
+    const auto size = serialized_size(version);
+    data.reserve(size);
     data_sink ostream(data);
     to_data(version, ostream);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -149,43 +194,86 @@ void inventory_vector::to_data(uint32_t version,
 void inventory_vector::to_data(uint32_t version,
     writer& sink) const
 {
-    const auto raw_type = inventory_vector::to_number(type);
+    const auto raw_type = inventory_vector::to_number(type_);
     sink.write_4_bytes_little_endian(raw_type);
-    sink.write_hash(hash);
+    sink.write_hash(hash_);
 }
 
-uint64_t inventory_vector::serialized_size(uint32_t version) const
+size_t inventory_vector::serialized_size(uint32_t version) const
 {
     return inventory_vector::satoshi_fixed_size(version);
 }
 
-uint64_t inventory_vector::satoshi_fixed_size(uint32_t version)
+size_t inventory_vector::satoshi_fixed_size(uint32_t version)
 {
-    return sizeof(hash) + sizeof(uint32_t);
+    return sizeof(hash_) + sizeof(uint32_t);
 }
 
 bool inventory_vector::is_block_type() const
 {
     return
-        type == inventory::type_id::block ||
-        type == inventory::type_id::compact_block ||
-        type == inventory::type_id::filtered_block;
+        type_ == type_id::block ||
+        type_ == type_id::compact_block ||
+        type_ == type_id::filtered_block;
 }
 
 bool inventory_vector::is_transaction_type() const
 {
-    return type == message::inventory::type_id::transaction;
+    return type_ == type_id::transaction;
 }
 
-bool operator==(const inventory_vector& left, const inventory_vector& right)
+inventory_vector::type_id inventory_vector::type() const
 {
-    return (left.hash == right.hash) && (left.type == right.type);
+    return type_;
 }
 
-bool operator!=(const inventory_vector& left, const inventory_vector& right)
+void inventory_vector::set_type(type_id value)
 {
-    return !(left == right);
+    type_ = value;
 }
 
-} // namspace message
-} // namspace libbitcoin
+hash_digest& inventory_vector::hash()
+{
+    return hash_;
+}
+
+const hash_digest& inventory_vector::hash() const
+{
+    return hash_;
+}
+
+void inventory_vector::set_hash(const hash_digest& value)
+{
+    hash_ = value;
+}
+
+void inventory_vector::set_hash(hash_digest&& value)
+{
+    hash_ = std::move(value);
+}
+
+inventory_vector& inventory_vector::operator=(inventory_vector&& other)
+{
+    type_ = other.type_;
+    hash_ = std::move(other.hash_);
+    return *this;
+}
+
+void inventory_vector::operator=(const inventory_vector& other)
+{
+    type_ = other.type_;
+    hash_ = other.hash_;
+}
+
+bool inventory_vector::operator==(const inventory_vector& other) const
+{
+    return (hash_ == other.hash_) && (type_ == other.type_);
+}
+
+bool inventory_vector::operator!=(const inventory_vector& other) const
+{
+    return !(*this == other);
+}
+
+} // namespace message
+} // namespace libbitcoin

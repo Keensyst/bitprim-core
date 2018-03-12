@@ -1,29 +1,30 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#ifdef WITH_PNG
+
 #include <bitcoin/bitcoin/utility/png.hpp>
 
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
-#include <boost/iostreams/stream.hpp>
 #include <bitcoin/bitcoin/constants.hpp>
 #include <bitcoin/bitcoin/formats/base_16.hpp>
 #include <bitcoin/bitcoin/utility/color.hpp>
@@ -33,8 +34,6 @@
 #include <bitcoin/bitcoin/utility/ostream_writer.hpp>
 
 namespace libbitcoin {
-
-#ifdef WITH_PNG
 
 bool png::write_png(const data_chunk& data, uint32_t size, std::ostream& out)
 {
@@ -65,7 +64,7 @@ extern "C" void sink_write(png_structp png_ptr, png_bytep data,
     const auto size = static_cast<size_t>(length);
 
     auto& sink = *reinterpret_cast<ostream_writer*>(png_get_io_ptr(png_ptr));
-    sink.write_data(reinterpret_cast<const uint8_t*>(data), size);
+    sink.write_bytes(reinterpret_cast<const uint8_t*>(data), size);
 }
 
 extern "C" void error_callback(png_structp png_ptr,
@@ -81,16 +80,15 @@ bool png::write_png(std::istream& in, uint32_t size, uint32_t dots_per_inch,
     if (size == 0)
         return false;
 
-    uint32_t version, width;
     istream_reader source(in);
-    source.read_data(reinterpret_cast<uint8_t*>(&version), sizeof(uint32_t));
-    source.read_data(reinterpret_cast<uint8_t*>(&width), sizeof(uint32_t));
+    auto version = source.read_4_bytes_little_endian();
+    auto width = source.read_4_bytes_little_endian();
 
     if (bc::max_size_t / width < width)
         return false;
 
     const auto area = width * width;
-    auto data = source.read_data(area);
+    auto data = source.read_bytes(area);
 
     try
     {
@@ -199,6 +197,6 @@ bool png::write_png(std::istream& in, uint32_t size, uint32_t dots_per_inch,
     return true;
 }
 
-#endif
-
 } // namespace libbitcoin
+
+#endif // WITH_PNG

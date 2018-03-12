@@ -1,31 +1,35 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef LIBBITCOIN_DISPATCHER_HPP
 #define LIBBITCOIN_DISPATCHER_HPP
 
+#include <cstddef>
 #include <functional>
 #include <string>
 #include <utility>
 #include <vector>
 #include <bitcoin/bitcoin/define.hpp>
+#include <bitcoin/bitcoin/error.hpp>
+#include <bitcoin/bitcoin/utility/asio.hpp>
+#include <bitcoin/bitcoin/utility/deadline.hpp>
 #include <bitcoin/bitcoin/utility/delegates.hpp>
+#include <bitcoin/bitcoin/utility/noncopyable.hpp>
 #include <bitcoin/bitcoin/utility/synchronizer.hpp>
 #include <bitcoin/bitcoin/utility/threadpool.hpp>
 #include <bitcoin/bitcoin/utility/work.hpp>
@@ -50,16 +54,19 @@ namespace libbitcoin {
 /// This  class is thread safe.
 /// If the ios service is stopped jobs will not be dispatched.
 class BC_API dispatcher
+  : noncopyable
 {
 public:
+    typedef std::function<void(const code&)> delay_handler;
+
     dispatcher(threadpool& pool, const std::string& name);
 
-    size_t ordered_backlog();
-    size_t unordered_backlog();
-    size_t concurrent_backlog();
-    size_t combined_backlog();
+    ////size_t ordered_backlog();
+    ////size_t unordered_backlog();
+    ////size_t concurrent_backlog();
+    ////size_t combined_backlog();
 
-    /// Invokes a job on the current thread.
+    /// Invokes a job on the current thread. Equivalent to invoking std::bind.
     template <typename... Args>
     static void bound(Args&&... args)
     {
@@ -70,14 +77,14 @@ public:
     template <typename... Args>
     void concurrent(Args&&... args)
     {
-        heap_.concurrent(BIND_ARGS(args));
+        heap_->concurrent(BIND_ARGS(args));
     }
 
     /// Post a job to the strand. Ordered and not concurrent.
     template <typename... Args>
     void ordered(Args&&... args)
     {
-        heap_.ordered(BIND_ARGS(args));
+        heap_->ordered(BIND_ARGS(args));
     }
 
     /// Posts a strand-wrapped job to the service. Not ordered or concurrent.
@@ -85,7 +92,33 @@ public:
     template <typename... Args>
     void unordered(Args&&... args)
     {
-        heap_.unordered(BIND_ARGS(args));
+        heap_->unordered(BIND_ARGS(args));
+    }
+
+    /// Posts an asynchronous job to the sequencer. Ordered and not concurrent.
+    /// The sequencer provides both non-concurrency and ordered execution.
+    template <typename... Args>
+    void lock(Args&&... args)
+    {
+        heap_->lock(BIND_ARGS(args));
+    }
+
+    /// Complete sequential execution.
+    inline void unlock()
+    {
+        heap_->unlock();
+    }
+
+    /// Posts job to service after specified delay. Concurrent and not ordered.
+    /// The timer cannot be canceled so delay should be within stop criteria.
+    inline void delayed(const asio::duration& delay, delay_handler handler)
+    {
+        auto timer = std::make_shared<deadline>(pool_, delay);
+        timer->start([handler, timer](const code& ec)
+        {
+            handler(ec);
+            timer->stop();
+        });
     }
 
     /// Returns a delegate that will execute the job on the current thread.
@@ -135,63 +168,95 @@ public:
         };
     }
 
-    /// Executes multiple identical jobs concurrently until one completes.
-    template <typename Count, typename Handler, typename... Args>
-    void race(Count count, const std::string& name, Handler&& handler,
-        Args... args)
+    /// Returns a delegate that will post a job via the sequencer.
+    template <typename... Args>
+    auto sequence_delegate(Args&&... args) ->
+        delegates::sequence<decltype(BIND_ARGS(args))>
     {
-        // The first fail will also terminate race and return the code.
-        static const size_t clearance_count = 1;
-        const auto call = synchronize(FORWARD_HANDLER(handler),
-            clearance_count, name, false);
-
-        for (Count iteration = 0; iteration < count; ++iteration)
-            concurrent(BIND_RACE(args, call));
+        return
+        {
+            BIND_ARGS(args),
+            heap_
+        };
     }
 
-    /// Executes the job against each member of a collection concurrently.
-    template <typename Element, typename Handler, typename... Args>
-    void parallel(const std::vector<Element>& collection,
-        const std::string& name, Handler&& handler, Args... args)
+    /////// Executes multiple identical jobs concurrently until one completes.
+    ////template <typename Count, typename Handler, typename... Args>
+    ////void race(Count count, const std::string& name, Handler&& handler,
+    ////    Args... args)
+    ////{
+    ////    // The first fail will also terminate race and return the code.
+    ////    static const size_t clearance_count = 1;
+    ////    const auto call = synchronize(FORWARD_HANDLER(handler),
+    ////        clearance_count, name, false);
+    ////
+    ////    for (Count iteration = 0; iteration < count; ++iteration)
+    ////        concurrent(BIND_RACE(args, call));
+    ////}
+    ////
+    /////// Executes the job against each member of a collection concurrently.
+    ////template <typename Element, typename Handler, typename... Args>
+    ////void parallel(const std::vector<Element>& collection,
+    ////    const std::string& name, Handler&& handler, Args... args)
+    ////{
+    ////    // Failures are suppressed, success always returned to handler.
+    ////    const auto call = synchronize(FORWARD_HANDLER(handler),
+    ////        collection.size(), name, true);
+    ////
+    ////    for (const auto& element: collection)
+    ////        concurrent(BIND_ELEMENT(args, element, call));
+    ////}
+    ////
+    /////// Disperses the job against each member of a collection without order.
+    ////template <typename Element, typename Handler, typename... Args>
+    ////void disperse(const std::vector<Element>& collection,
+    ////    const std::string& name, Handler&& handler, Args... args)
+    ////{
+    ////    // Failures are suppressed, success always returned to handler.
+    ////    const auto call = synchronize(FORWARD_HANDLER(handler),
+    ////        collection.size(), name, true);
+    ////
+    ////    for (const auto& element: collection)
+    ////        unordered(BIND_ELEMENT(args, element, call));
+    ////}
+    ////
+    /////// Disperses the job against each member of a collection with order.
+    ////template <typename Element, typename Handler, typename... Args>
+    ////void serialize(const std::vector<Element>& collection,
+    ////    const std::string& name, Handler&& handler, Args... args)
+    ////{
+    ////    // Failures are suppressed, success always returned to handler.
+    ////    const auto call = synchronize(FORWARD_HANDLER(handler),
+    ////        collection.size(), name, true);
+    ////
+    ////    for (const auto& element: collection)
+    ////        ordered(BIND_ELEMENT(args, element, call));
+    ////}
+    ////
+    /////// Sequences the job against each member of a collection with order.
+    ////template <typename Element, typename Handler, typename... Args>
+    ////void sequential(const std::vector<Element>& collection,
+    ////    const std::string& name, Handler&& handler, Args... args)
+    ////{
+    ////    // Failures are suppressed, success always returned to handler.
+    ////    const auto call = synchronize(FORWARD_HANDLER(handler),
+    ////        collection.size(), name, true);
+    ////
+    ////    for (const auto& element: collection)
+    ////        sequence(BIND_ELEMENT(args, element, call));
+    ////}
+
+    /// The size of the dispatcher's threadpool at the time of calling.
+    inline size_t size() const
     {
-        // Failures are suppressed, success always returned to handler.
-        const auto call = synchronize(FORWARD_HANDLER(handler),
-            collection.size(), name, true);
-
-        for (const auto& element: collection)
-            concurrent(BIND_ELEMENT(args, element, call));
-    }
-
-    /// Disperses the job against each member of a collection without order.
-    template <typename Element, typename Handler, typename... Args>
-    void disperse(const std::vector<Element>& collection,
-        const std::string& name, Handler&& handler, Args... args)
-    {
-        // Failures are suppressed, success always returned to handler.
-        const auto call = synchronize(FORWARD_HANDLER(handler),
-            collection.size(), name, true);
-
-        for (const auto& element: collection)
-            unordered(BIND_ELEMENT(args, element, call));
-    }
-
-    /// Disperses the job against each member of a collection with order.
-    template <typename Element, typename Handler, typename... Args>
-    void serialize(const std::vector<Element>& collection,
-        const std::string& name, Handler&& handler, Args... args)
-    {
-        // Failures are suppressed, success always returned to handler.
-        const auto call = synchronize(FORWARD_HANDLER(handler),
-            collection.size(), name, true);
-
-        for (const auto& element: collection)
-            ordered(BIND_ELEMENT(args, element, call));
+        return pool_.size();
     }
 
 private:
 
     // This is thread safe.
-    work heap_;
+    work::ptr heap_;
+    threadpool& pool_;
 };
 
 #undef FORWARD_ARGS

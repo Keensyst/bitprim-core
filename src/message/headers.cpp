@@ -1,30 +1,32 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/headers.hpp>
 
 #include <algorithm>
 #include <cstdint>
+#include <initializer_list>
+#include <istream>
 #include <utility>
-#include <boost/iostreams/stream.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
 #include <bitcoin/bitcoin/message/inventory.hpp>
 #include <bitcoin/bitcoin/message/inventory_vector.hpp>
+#include <bitcoin/bitcoin/message/messages.hpp>
 #include <bitcoin/bitcoin/message/version.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/container_source.hpp>
@@ -63,28 +65,45 @@ headers headers::factory_from_data(uint32_t version,
 }
 
 headers::headers()
+  : elements_()
 {
 }
 
-headers::headers(const chain::header::list& values)
+// Uses headers copy assignment.
+headers::headers(const header::list& values)
+  : elements_(values)
 {
-    elements.insert(elements.end(), values.begin(), values.end());
 }
 
-headers::headers(const std::initializer_list<chain::header>& values)
+headers::headers(header::list&& values)
+  : elements_(std::move(values))
 {
-    elements.insert(elements.end(), values.begin(), values.end());
+}
+
+headers::headers(const std::initializer_list<header>& values)
+  : elements_(values)
+{
+}
+
+headers::headers(const headers& other)
+  : headers(other.elements_)
+{
+}
+
+headers::headers(headers&& other)
+  : headers(std::move(other.elements_))
+{
 }
 
 bool headers::is_valid() const
 {
-    return !elements.empty();
+    return !elements_.empty();
 }
 
 void headers::reset()
 {
-    elements.clear();
-    elements.shrink_to_fit();
+    elements_.clear();
+    elements_.shrink_to_fit();
 }
 
 bool headers::from_data(uint32_t version, const data_chunk& data)
@@ -103,36 +122,37 @@ bool headers::from_data(uint32_t version, reader& source)
 {
     reset();
 
-    auto result = !(version < version_minimum);
-    const auto count = source.read_variable_uint_little_endian();
-    result &= static_cast<bool>(source);
+    const auto count = source.read_size_little_endian();
 
-    if (result)
-    {
-        elements.resize(count);
+    // Guard against potential for arbitary memory allocation.
+    if (count > max_get_headers)
+        source.invalidate();
+    else
+        elements_.resize(count);
 
-        for (auto& element: elements)
-        {
-            result = element.from_data(source, true);
+    // Order is required.
+    for (auto& element: elements_)
+        if (!element.from_data(version, source))
+            break;
 
-            if (!result)
-                break;
-        }
-    }
+    if (version < headers::version_minimum)
+        source.invalidate();
 
-    if (!result)
+    if (!source)
         reset();
 
-    return result;
+    return source;
 }
 
 data_chunk headers::to_data(uint32_t version) const
 {
     data_chunk data;
+    const auto size = serialized_size(version);
+    data.reserve(size);
     data_sink ostream(data);
     to_data(version, ostream);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -144,54 +164,93 @@ void headers::to_data(uint32_t version, std::ostream& stream) const
 
 void headers::to_data(uint32_t version, writer& sink) const
 {
-    sink.write_variable_uint_little_endian(elements.size());
+    sink.write_variable_little_endian(elements_.size());
 
-    for (const auto& element: elements)
-        element.to_data(sink, true);
+    for (const auto& element: elements_)
+        element.to_data(version, sink);
+}
+
+bool headers::is_sequential() const
+{
+    if (elements_.empty())
+        return true;
+
+    auto previous = elements_.front().hash();
+
+    for (auto it = elements_.begin() + 1; it != elements_.end(); ++it)
+    {
+        if (it->previous_block_hash() != previous)
+            return false;
+
+        previous = it->hash();
+    }
+
+    return true;
 }
 
 void headers::to_hashes(hash_list& out) const
 {
-    const auto map = [](const chain::header& header)
+    const auto map = [](const header& header)
     {
         return header.hash();
     };
 
-    out.resize(elements.size());
-    std::transform(elements.begin(), elements.end(), out.begin(), map);
+    out.resize(elements_.size());
+    std::transform(elements_.begin(), elements_.end(), out.begin(), map);
 }
 
 void headers::to_inventory(inventory_vector::list& out,
     inventory::type_id type) const
 {
-    const auto map = [type](const chain::header& header)
+    const auto map = [type](const header& header)
     {
         return inventory_vector{ type, header.hash() };
     };
 
-    out.resize(elements.size());
-    std::transform(elements.begin(), elements.end(), out.begin(), map);
+    std::transform(elements_.begin(), elements_.end(), std::back_inserter(out), map);
 }
 
-uint64_t headers::serialized_size(uint32_t version) const
+size_t headers::serialized_size(uint32_t version) const
 {
-    uint64_t size = variable_uint_size(elements.size());
-
-    for (const auto& element: elements)
-        size += element.serialized_size(true);
-
-    return size;
+    return message::variable_uint_size(elements_.size()) +
+        (elements_.size() * header::satoshi_fixed_size(version));
 }
 
-bool operator==(const headers& left, const headers& right)
+header::list& headers::elements()
 {
-    return left.elements == right.elements;
+    return elements_;
 }
 
-bool operator!=(const headers& left, const headers& right)
+const header::list& headers::elements() const
 {
-    return !(left == right);
+    return elements_;
 }
 
-} // namspace message
-} // namspace libbitcoin
+void headers::set_elements(const header::list& values)
+{
+    elements_ = values;
+}
+
+void headers::set_elements(header::list&& values)
+{
+    elements_ = std::move(values);
+}
+
+headers& headers::operator=(headers&& other)
+{
+    elements_ = std::move(other.elements_);
+    return *this;
+}
+
+bool headers::operator==(const headers& other) const
+{
+    return (elements_ == other.elements_);
+}
+
+bool headers::operator!=(const headers& other) const
+{
+    return !(*this == other);
+}
+
+} // namespace message
+} // namespace libbitcoin

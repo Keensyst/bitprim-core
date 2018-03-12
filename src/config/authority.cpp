@@ -1,24 +1,24 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/config/authority.hpp>
 
+#include <algorithm>
 #include <sstream>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
@@ -120,7 +120,7 @@ authority::authority(const std::string& authority)
 
 // This is the format returned from peers on the bitcoin network.
 authority::authority(const message::network_address& address)
-  : authority(address.ip, address.port)
+  : authority(address.ip(), address.port())
 {
 }
 
@@ -128,7 +128,7 @@ static asio::ipv6 to_boost_address(const message::ip_address& in)
 {
     asio::ipv6::bytes_type bytes;
     BITCOIN_ASSERT(bytes.size() == in.size());
-    std::copy(in.begin(), in.end(), bytes.begin());
+    std::copy_n(in.begin(), in.size(), bytes.begin());
     const asio::ipv6 out(bytes);
     return out;
 }
@@ -138,7 +138,7 @@ static message::ip_address to_bc_address(const asio::ipv6& in)
     message::ip_address out;
     const auto bytes = in.to_bytes();
     BITCOIN_ASSERT(bytes.size() == out.size());
-    std::copy(bytes.begin(), bytes.end(), out.begin());
+    std::copy_n(bytes.begin(), bytes.size(), out.begin());
     return out;
 }
 
@@ -163,6 +163,16 @@ authority::authority(const asio::endpoint& endpoint)
 {
 }
 
+authority::operator const bool() const
+{
+    return port_ != 0;
+}
+
+asio::ipv6 authority::asio_ip() const
+{
+    return ip_;
+}
+
 message::ip_address authority::ip() const
 {
     return to_bc_address(ip_);
@@ -182,7 +192,7 @@ std::string authority::to_hostname() const
 message::network_address authority::to_network_address() const
 {
     static constexpr uint32_t services = 0;
-    static constexpr uint64_t timestamp = 0;
+    static constexpr uint32_t timestamp = 0;
     const message::network_address network_address
     {
         timestamp, services, ip(), port(),

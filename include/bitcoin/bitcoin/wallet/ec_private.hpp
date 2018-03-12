@@ -1,26 +1,26 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef LIBBITCOIN_EC_PRIVATE_HPP
 #define LIBBITCOIN_EC_PRIVATE_HPP
 
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <bitcoin/bitcoin/compat.hpp>
 #include <bitcoin/bitcoin/define.hpp>
@@ -45,27 +45,32 @@ typedef byte_array<wif_compressed_size> wif_compressed;
 class BC_API ec_private
 {
 public:
+    static const uint8_t compressed_sentinel;
+
     // WIF carries a compression flag for payment address generation but
     // assumes a mapping to payment address version. This is insufficient
     // as a parameterized mapping is required, so we use the same technique as
     // with hd keys, merging the two necessary values into one version.
-    static const uint8_t wif;
+    static const uint8_t mainnet_wif;
     static const uint8_t mainnet_p2kh;
     static const uint16_t mainnet;
-    static const uint8_t compressed_sentinel;
 
-    static inline uint8_t to_address_prefix(uint16_t version)
+    static const uint8_t testnet_wif;
+    static const uint8_t testnet_p2kh;
+    static const uint16_t testnet;
+
+    static uint8_t to_address_prefix(uint16_t version)
     {
         return version & 0x00FF;
     }
 
-    static inline uint8_t to_wif_prefix(uint16_t version)
+    static uint8_t to_wif_prefix(uint16_t version)
     {
         return version >> 8;
     }
 
     // Unfortunately can't use this below to define mainnet (MSVC).
-    static inline uint16_t to_version(uint8_t address, uint8_t wif)
+    static uint16_t to_version(uint8_t address, uint8_t wif)
     {
         return uint16_t(wif) << 8 | address;
     }

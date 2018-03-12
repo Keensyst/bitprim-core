@@ -1,21 +1,20 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/not_found.hpp>
 
@@ -65,6 +64,11 @@ not_found::not_found(const inventory_vector::list& values)
 {
 }
 
+not_found::not_found(inventory_vector::list&& values)
+  : inventory(values)
+{
+}
+
 not_found::not_found(const hash_list& hashes, inventory::type_id type)
   : inventory(hashes, type)
 {
@@ -72,6 +76,16 @@ not_found::not_found(const hash_list& hashes, inventory::type_id type)
 
 not_found::not_found(const std::initializer_list<inventory_vector>& values)
   : inventory(values)
+{
+}
+
+not_found::not_found(const not_found& other)
+  : inventory(other)
+{
+}
+
+not_found::not_found(not_found&& other)
+  : inventory(other)
 {
 }
 
@@ -87,16 +101,33 @@ bool not_found::from_data(uint32_t version, std::istream& stream)
 
 bool not_found::from_data(uint32_t version, reader& source)
 {
-    bool result = !(version < not_found::version_minimum);
+    if (!inventory::from_data(version, source))
+        return false;
 
-    if (result)
-        result = inventory::from_data(version, source);
+    if (version < not_found::version_minimum)
+        source.invalidate();
 
-    if (!result)
+    if (!source)
         reset();
 
-    return result;
+    return source;
 }
 
-} // namspace message
-} // namspace libbitcoin
+not_found& not_found::operator=(not_found&& other)
+{
+    set_inventories(other.inventories());
+    return *this;
+}
+
+bool not_found::operator==(const not_found& other) const
+{
+    return (static_cast<inventory>(*this) == static_cast<inventory>(other));
+}
+
+bool not_found::operator!=(const not_found& other) const
+{
+    return (static_cast<inventory>(*this) != static_cast<inventory>(other));
+}
+
+} // namespace message
+} // namespace libbitcoin

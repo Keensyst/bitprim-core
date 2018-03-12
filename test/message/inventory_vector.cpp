@@ -1,24 +1,22 @@
 /**
- * Copyright (c) 2011-2013 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <boost/test/unit_test.hpp>
-#include <boost/iostreams/stream.hpp>
 #include <bitcoin/bitcoin.hpp>
 
 using namespace bc;
@@ -28,27 +26,27 @@ BOOST_AUTO_TEST_SUITE(inventory_vector_tests)
 
 BOOST_AUTO_TEST_CASE(inventory_vector__to_number__error__returns_0)
 {
-    BOOST_REQUIRE_EQUAL(0u, inventory_vector::to_number(inventory_vector::type_id::error));
-}
-
-BOOST_AUTO_TEST_CASE(inventory_vector__to_number__none__returns_0)
-{
-    BOOST_REQUIRE_EQUAL(0u, inventory_vector::to_number(inventory_vector::type_id::none));
+    BOOST_REQUIRE_EQUAL(inventory_vector::to_number(inventory_vector::type_id::error), 0u);
 }
 
 BOOST_AUTO_TEST_CASE(inventory_vector__to_number__transaction__returns_1)
 {
-    BOOST_REQUIRE_EQUAL(1u, inventory_vector::to_number(inventory_vector::type_id::transaction));
+    BOOST_REQUIRE_EQUAL(inventory_vector::to_number(inventory_vector::type_id::transaction), 1u);
 }
 
 BOOST_AUTO_TEST_CASE(inventory_vector__to_number__block__returns_2)
 {
-    BOOST_REQUIRE_EQUAL(2u, inventory_vector::to_number(inventory_vector::type_id::block));
+    BOOST_REQUIRE_EQUAL(inventory_vector::to_number(inventory_vector::type_id::block), 2u);
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__to_number__filtered_block__returns_3)
+{
+    BOOST_REQUIRE_EQUAL(inventory_vector::to_number(inventory_vector::type_id::filtered_block), 3u);
 }
 
 BOOST_AUTO_TEST_CASE(inventory_vector__to_number__compact_block__returns_4)
 {
-    BOOST_REQUIRE_EQUAL(4u, inventory_vector::to_number(inventory_vector::type_id::compact_block));
+    BOOST_REQUIRE_EQUAL(inventory_vector::to_number(inventory_vector::type_id::compact_block), 4u);
 }
 
 BOOST_AUTO_TEST_CASE(inventory_vector__to_type__0__returns_error)
@@ -66,24 +64,71 @@ BOOST_AUTO_TEST_CASE(inventory_vector__to_type__2__returns_block)
     BOOST_REQUIRE(inventory_vector::type_id::block == inventory_vector::to_type(2));
 }
 
+BOOST_AUTO_TEST_CASE(inventory_vector__to_type__3__returns_filtered_block)
+{
+    BOOST_REQUIRE(inventory_vector::type_id::filtered_block == inventory_vector::to_type(3));
+}
+
 BOOST_AUTO_TEST_CASE(inventory_vector__to_type__4__returns_compact_block)
 {
     BOOST_REQUIRE(inventory_vector::type_id::compact_block == inventory_vector::to_type(4));
 }
 
-BOOST_AUTO_TEST_CASE(inventory_vector__to_type__3__returns_none)
+BOOST_AUTO_TEST_CASE(inventory_vector__constructor_1__always__invalid)
 {
-    BOOST_REQUIRE(inventory_vector::type_id::none == inventory_vector::to_type(3));
+    message::inventory_vector instance;
+    BOOST_REQUIRE_EQUAL(false, instance.is_valid());
 }
 
-BOOST_AUTO_TEST_CASE(from_data_insufficient_bytes_failure)
+BOOST_AUTO_TEST_CASE(inventory_vector__constructor_2__always__equals_params)
+{
+    inventory_vector::type_id type = inventory_vector::type_id::block;
+    hash_digest hash = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    inventory_vector instance(type, hash);
+    BOOST_REQUIRE(instance.is_valid());
+    BOOST_REQUIRE(type == instance.type());
+    BOOST_REQUIRE(hash == instance.hash());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__constructor_3__always__equals_params)
+{
+    inventory_vector::type_id type = inventory_vector::type_id::block;
+    hash_digest hash = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    inventory_vector instance(type, std::move(hash));
+    BOOST_REQUIRE(instance.is_valid());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__constructor_4__always__equals_params)
+{
+    inventory_vector::type_id type = inventory_vector::type_id::block;
+    hash_digest hash = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    const inventory_vector expected(type, hash);
+    BOOST_REQUIRE(expected.is_valid());
+    inventory_vector instance(expected);
+    BOOST_REQUIRE(instance.is_valid());
+    BOOST_REQUIRE(expected == instance);
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__constructor_5__always__equals_params)
+{
+    inventory_vector::type_id type = inventory_vector::type_id::block;
+    hash_digest hash = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    inventory_vector expected(type, hash);
+    BOOST_REQUIRE(expected.is_valid());
+    inventory_vector instance(std::move(expected));
+    BOOST_REQUIRE(instance.is_valid());
+    BOOST_REQUIRE(type == instance.type());
+    BOOST_REQUIRE(hash == instance.hash());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__from_data__insufficient_bytes__failure)
 {
     static const data_chunk raw{ 1 };
     inventory_vector instance;
     BOOST_REQUIRE_EQUAL(false, instance.from_data(version::level::minimum, raw));
 }
 
-BOOST_AUTO_TEST_CASE(roundtrip_to_data_factory_from_data_chunk)
+BOOST_AUTO_TEST_CASE(inventory_vector__factory_from_data_1__valid_input__success)
 {
     static const inventory_vector expected
     {
@@ -107,7 +152,7 @@ BOOST_AUTO_TEST_CASE(roundtrip_to_data_factory_from_data_chunk)
     BOOST_REQUIRE_EQUAL(expected.serialized_size(version), result.serialized_size(version));
 }
 
-BOOST_AUTO_TEST_CASE(roundtrip_to_data_factory_from_data_stream)
+BOOST_AUTO_TEST_CASE(inventory_vector__factory_from_data_2__valid_input__success)
 {
     static const inventory_vector expected
     {
@@ -132,7 +177,7 @@ BOOST_AUTO_TEST_CASE(roundtrip_to_data_factory_from_data_stream)
     BOOST_REQUIRE_EQUAL(expected.serialized_size(version), result.serialized_size(version));
 }
 
-BOOST_AUTO_TEST_CASE(roundtrip_to_data_factory_from_data_reader)
+BOOST_AUTO_TEST_CASE(inventory_vector__factory_from_data_3__valid_input__success)
 {
     static const inventory_vector expected
     {
@@ -156,6 +201,169 @@ BOOST_AUTO_TEST_CASE(roundtrip_to_data_factory_from_data_reader)
     BOOST_REQUIRE(expected == result);
     BOOST_REQUIRE_EQUAL(data.size(), result.serialized_size(version));
     BOOST_REQUIRE_EQUAL(expected.serialized_size(version), result.serialized_size(version));
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__is_block_type__block__returns_true)
+{
+    message::inventory_vector instance;
+    instance.set_type(message::inventory_vector::type_id::block);
+    BOOST_REQUIRE(instance.is_block_type());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__is_block_type__compact_block__returns_true)
+{
+    message::inventory_vector instance;
+    instance.set_type(message::inventory_vector::type_id::compact_block);
+    BOOST_REQUIRE(instance.is_block_type());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__is_block_type__filtered_block__returns_true)
+{
+    message::inventory_vector instance;
+    instance.set_type(message::inventory_vector::type_id::filtered_block);
+    BOOST_REQUIRE(instance.is_block_type());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__is_block_type__non_block_type__returns_false)
+{
+    message::inventory_vector instance;
+    instance.set_type(message::inventory_vector::type_id::transaction);
+    BOOST_REQUIRE_EQUAL(false, instance.is_block_type());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__is_transaction_type__transaction__returns_true)
+{
+    message::inventory_vector instance;
+    instance.set_type(message::inventory_vector::type_id::transaction);
+    BOOST_REQUIRE(instance.is_transaction_type());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__is_transaction_type__non_transaction_type__returns_false)
+{
+    message::inventory_vector instance;
+    instance.set_type(message::inventory_vector::type_id::block);
+    BOOST_REQUIRE_EQUAL(false, instance.is_transaction_type());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__type_accessor__always__returns_initialized_value)
+{
+    message::inventory_vector::type_id type = message::inventory_vector::type_id::transaction;
+    hash_digest hash = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    message::inventory_vector instance(type, hash);
+    BOOST_REQUIRE(type == instance.type());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__type_setter__roundtrip__success)
+{
+    message::inventory_vector::type_id type = message::inventory_vector::type_id::transaction;
+    message::inventory_vector instance;
+    BOOST_REQUIRE(type != instance.type());
+    instance.set_type(type);
+    BOOST_REQUIRE(type == instance.type());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__hash_accessor__always__returns_initialized_value)
+{
+    message::inventory_vector::type_id type = message::inventory_vector::type_id::transaction;
+    hash_digest hash = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    message::inventory_vector instance(type, hash);
+    BOOST_REQUIRE(hash == instance.hash());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__hash_setter_1__roundtrip__success)
+{
+    hash_digest hash = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    message::inventory_vector instance;
+    BOOST_REQUIRE(hash != instance.hash());
+    instance.set_hash(hash);
+    BOOST_REQUIRE(hash == instance.hash());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__hash_setter_2__roundtrip__success)
+{
+    hash_digest duplicate = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    hash_digest hash = hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    message::inventory_vector instance;
+    BOOST_REQUIRE(duplicate != instance.hash());
+    instance.set_hash(std::move(hash));
+    BOOST_REQUIRE(duplicate == instance.hash());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__operator_assign_equals_1__always__matches_equivalent)
+{
+    message::inventory_vector value(
+        message::inventory_vector::type_id::compact_block,
+        hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b")
+    );
+
+    BOOST_REQUIRE(value.is_valid());
+
+    message::inventory_vector instance;
+    BOOST_REQUIRE_EQUAL(false, instance.is_valid());
+
+    instance = std::move(value);
+    BOOST_REQUIRE(instance.is_valid());
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__operator_assign_equals_2__always__matches_equivalent)
+{
+    message::inventory_vector value(
+        message::inventory_vector::type_id::compact_block,
+        hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b")
+    );
+
+    BOOST_REQUIRE(value.is_valid());
+
+    message::inventory_vector instance;
+    BOOST_REQUIRE_EQUAL(false, instance.is_valid());
+
+    instance = value;
+    BOOST_REQUIRE(instance.is_valid());
+    BOOST_REQUIRE(value == instance);
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__operator_boolean_equals__duplicates__returns_true)
+{
+    const message::inventory_vector expected(
+        message::inventory_vector::type_id::filtered_block,
+        hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b")
+    );
+
+    message::inventory_vector instance(expected);
+    BOOST_REQUIRE(instance == expected);
+}
+
+BOOST_AUTO_TEST_CASE(inventory_vector__operator_boolean_equals__differs__returns_false)
+{
+    const message::inventory_vector expected(
+        message::inventory_vector::type_id::filtered_block,
+        hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b")
+    );
+
+    message::inventory_vector instance;
+    BOOST_REQUIRE_EQUAL(false, instance == expected);
+}
+
+BOOST_AUTO_TEST_CASE(reject__operator_boolean_not_equals__duplicates__returns_false)
+{
+    const message::inventory_vector expected(
+        message::inventory_vector::type_id::filtered_block,
+        hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b")
+    );
+
+    message::inventory_vector instance(expected);
+    BOOST_REQUIRE_EQUAL(false, instance != expected);
+}
+
+BOOST_AUTO_TEST_CASE(reject__operator_boolean_not_equals__differs__returns_true)
+{
+    const message::inventory_vector expected(
+        message::inventory_vector::type_id::filtered_block,
+        hash_literal("4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b")
+    );
+
+    message::inventory_vector instance;
+    BOOST_REQUIRE(instance != expected);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

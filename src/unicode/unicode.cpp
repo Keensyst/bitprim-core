@@ -1,21 +1,20 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/unicode/unicode.hpp>
 
@@ -28,6 +27,7 @@
 #include <string>
 #include <boost/locale.hpp>
 #include <bitcoin/bitcoin/define.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
 #include <bitcoin/bitcoin/unicode/console_streambuf.hpp>
 #include <bitcoin/bitcoin/unicode/unicode_istream.hpp>
 #include <bitcoin/bitcoin/unicode/unicode_ostream.hpp>
@@ -95,14 +95,15 @@ static std::string normal_form(const std::string& value, norm_type form)
     return normalize(value, form, locale(BC_LOCALE_UTF8));
 }
 
-// One time verifier of the localization backend manager. This is 
-// necessary because boost::normalize will fail silently to perform 
+// One time verifier of the localization backend manager. This is
+// necessary because boost::normalize will fail silently to perform
 // normalization if the ICU dependency is missing.
 static void validate_localization()
 {
     const auto ascii_space = "> <";
     const auto ideographic_space = ">　<";
     const auto normal = normal_form(ideographic_space, norm_type::norm_nfkd);
+
     if (normal != ascii_space)
         throw std::runtime_error(
             "Unicode normalization test failed, a dependency may be missing.");
@@ -135,22 +136,24 @@ data_chunk to_utf8(wchar_t* environment[])
 // Convert wmain parameters to utf8 main parameters.
 data_chunk to_utf8(int argc, wchar_t* argv[])
 {
-    auto arg_count = static_cast<size_t>(argc);
+    const auto arg_count = safe_to_unsigned<size_t>(argc);
 
     // Convert each arg and determine the payload size.
     size_t payload_size = 0;
     std::vector<std::string> collection(arg_count + 1);
+
     for (size_t arg = 0; arg < arg_count; arg++)
     {
         collection[arg] = to_utf8(argv[arg]);
         payload_size += collection[arg].size() + 1;
     }
 
+    // TODO: unsafe multiplication.
     // Determine the index size.
-    auto index_size = static_cast<size_t>((arg_count + 1)* sizeof(void*));
+    const auto index_size = safe_add(arg_count, size_t{1}) * sizeof(void*);
 
     // Allocate the new buffer.
-    auto buffer_size = index_size + payload_size;
+    const auto buffer_size = safe_add(index_size, payload_size);
     data_chunk buffer(buffer_size, 0x00);
     buffer.resize(buffer_size);
 
@@ -162,8 +165,9 @@ data_chunk to_utf8(int argc, wchar_t* argv[])
     for (size_t arg = 0; arg < arg_count; arg++)
     {
         index[arg] = arguments;
-        std::copy(collection[arg].begin(), collection[arg].end(), index[arg]);
-        arguments += collection[arg].size() + 1;
+        const auto size = collection[arg].size();
+        std::copy_n(collection[arg].begin(), size, index[arg]);
+        arguments += safe_add(size, size_t{ 1 });
     }
 
     return buffer;
@@ -228,22 +232,22 @@ static bool is_utf8_character_sequence(const char sequence[], uint8_t bytes)
     {
         case 1:
             // 0xxxxxxx
-            return 
+            return
                 ((0x80 & sequence[0]) == 0x00);
         case 2:
             // 110xxxxx 10xxxxxx
-            return 
+            return
                 ((0xE0 & sequence[0]) == 0xC0) &&
                 is_utf8_trailing_byte(sequence[1]);
         case 3:
             // 1110xxxx 10xxxxxx 10xxxxxx
-            return 
+            return
                 ((0xF0 & sequence[0]) == 0xE0) &&
                 is_utf8_trailing_byte(sequence[1]) &&
                 is_utf8_trailing_byte(sequence[2]);
         case 4:
             // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-            return 
+            return
                 ((0xF8 & sequence[0]) == 0xF0) &&
                 is_utf8_trailing_byte(sequence[1]) &&
                 is_utf8_trailing_byte(sequence[2]) &&

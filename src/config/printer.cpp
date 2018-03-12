@@ -1,21 +1,20 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/config/printer.hpp>
 
@@ -40,7 +39,6 @@
 #define BC_PRINTER_DESCRIPTION_FORMAT "Info: %1%"
 #define BC_PRINTER_OPTION_TABLE_HEADER "Options (named):"
 #define BC_PRINTER_USAGE_FORMAT "Usage: %1% %2% %3%"
-#define BC_PRINTER_SETTINGS_TABLE_HEADER "Configuration Settings:"
 #define BC_PRINTER_VALUE_TEXT "value"
 
 // Not localizable formatters.
@@ -77,14 +75,14 @@ printer::printer(const po::options_description& options,
     const po::positional_options_description& arguments,
     const std::string& application, const std::string& description,
     const std::string& command)
-    : options_(options), arguments_(arguments), application_(application),
+  : options_(options), arguments_(arguments), application_(application),
     description_(description), command_(command)
 {
 }
 
 printer::printer(const po::options_description& settings,
     const std::string& application, const std::string& description)
-    : options_(settings), application_(application), description_(description)
+  : options_(settings), application_(application), description_(description)
 {
 }
 
@@ -133,7 +131,7 @@ static std::string format_row_name(const parameter& value)
     // wants to be upper case but must match in case with the env var option.
 
     if (value.get_position() != parameter::not_positional)
-        return (format(BC_PRINTER_TABLE_ARGUMENT_FORMAT) % 
+        return (format(BC_PRINTER_TABLE_ARGUMENT_FORMAT) %
             boost::to_upper_copy(value.get_long_name())).str();
     else if (value.get_short_name() == parameter::no_short_name)
         return (format(BC_PRINTER_TABLE_OPTION_LONG_FORMAT) %
@@ -276,7 +274,7 @@ std::string printer::format_settings_table()
 
 std::string printer::format_usage()
 {
-    // USAGE: bx COMMAND [-hvt] -n VALUE [-m VALUE] [-w VALUE]... REQUIRED 
+    // USAGE: bx COMMAND [-hvt] -n VALUE [-m VALUE] [-w VALUE]... REQUIRED
     // [OPTIONAL] [MULTIPLE]...
     auto usage = format(BC_PRINTER_USAGE_FORMAT) % get_application() %
         get_command() % format_usage_parameters();
@@ -305,7 +303,7 @@ std::string printer::format_usage_parameters()
     std::vector<std::string> multiple_arguments;
 
     const auto& parameters = get_parameters();
-    
+
     for (const auto& parameter: parameters)
     {
         // A required argument may only be preceeded by required arguments.
@@ -363,7 +361,7 @@ std::string printer::format_usage_parameters()
     for (const auto& required_option: required_options)
         usage << format(BC_PRINTER_USAGE_OPTION_REQUIRED_FORMAT) %
             required_option % BC_PRINTER_VALUE_TEXT;
-    
+
     for (const auto& toggle_long_option: toggle_long_options)
         usage << format(BC_PRINTER_USAGE_OPTION_TOGGLE_LONG_FORMAT) %
             toggle_long_option;
@@ -423,7 +421,7 @@ void printer::generate_argument_names()
     int max_previous_argument = 0;
 
     // We must enumerate all arguments to get the full set of names and counts.
-    for (unsigned int position = 0; position < max_total_arguments && 
+    for (unsigned int position = 0; position < max_total_arguments &&
         max_previous_argument <= max_arguments; ++position)
     {
         argument_name = arguments.name_for_position(position);
@@ -510,9 +508,9 @@ void printer::commandline(std::ostream& output)
 void printer::settings(std::ostream& output)
 {
     const auto& setting_table = format_settings_table();
-    const auto& setting_table_header = BC_PRINTER_SETTINGS_TABLE_HEADER;
 
-    output
-        << std::endl << setting_table_header
-        << std::endl << setting_table;
+    if (!description_.empty())
+        output << std::endl << description_;
+
+    output << std::endl << setting_table;
 }

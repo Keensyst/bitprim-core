@@ -1,31 +1,35 @@
-/*
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+/**
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/merkle_block.hpp>
 
-#include <boost/iostreams/stream.hpp>
+#include <bitcoin/bitcoin/chain/block.hpp>
+#include <bitcoin/bitcoin/chain/header.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
+#include <bitcoin/bitcoin/message/messages.hpp>
 #include <bitcoin/bitcoin/message/version.hpp>
 #include <bitcoin/bitcoin/utility/assert.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/container_source.hpp>
 #include <bitcoin/bitcoin/utility/istream_reader.hpp>
 #include <bitcoin/bitcoin/utility/ostream_writer.hpp>
+
+#include <bitcoin/bitcoin/bitcoin_cash_support.hpp>
 
 namespace libbitcoin {
 namespace message {
@@ -58,23 +62,65 @@ merkle_block merkle_block::factory_from_data(uint32_t version,
     return instance;
 }
 
+merkle_block::merkle_block()
+  : header_(), total_transactions_(0), hashes_(), flags_()
+{
+}
+
+merkle_block::merkle_block(const chain::header& header,
+    size_t total_transactions, const hash_list& hashes,
+    const data_chunk& flags)
+  : header_(header), total_transactions_(total_transactions), hashes_(hashes),
+    flags_(flags)
+{
+}
+
+merkle_block::merkle_block(chain::header&& header, size_t total_transactions,
+    hash_list&& hashes, data_chunk&& flags)
+  : header_(std::move(header)), total_transactions_(total_transactions),
+    hashes_(std::move(hashes)), flags_(std::move(flags))
+{
+}
+
+// Hack: use of safe_unsigned here isn't great. We should consider using size_t
+// for the transaction count and invalidating on deserialization and construct.
+merkle_block::merkle_block(const chain::block& block)
+  : merkle_block(block.header(),
+        safe_unsigned<uint32_t>(block.transactions().size()),
+        block.to_hashes(), {})
+{
+}
+
+merkle_block::merkle_block(const merkle_block& other)
+  : merkle_block(other.header_, other.total_transactions_, other.hashes_,
+      other.flags_)
+{
+}
+
+merkle_block::merkle_block(merkle_block&& other)
+  : merkle_block(std::move(other.header_), other.total_transactions_,
+      std::move(other.hashes_), std::move(other.flags_))
+{
+}
+
 bool merkle_block::is_valid() const
 {
-    return !hashes.empty() || !flags.empty() || header.is_valid();
+    return !hashes_.empty() || !flags_.empty() || header_.is_valid();
 }
 
 void merkle_block::reset()
 {
-    header.reset();
-    hashes.clear();
-    hashes.shrink_to_fit();
-    flags.clear();
-    flags.shrink_to_fit();
+    header_ = chain::header{};
+    total_transactions_ = 0;
+    hashes_.clear();
+    hashes_.shrink_to_fit();
+    flags_.clear();
+    flags_.shrink_to_fit();
 }
 
 bool merkle_block::from_data(uint32_t version, const data_chunk& data)
 {
-    boost::iostreams::stream<byte_source<data_chunk>> istream(data);
+    data_source istream(data);
     return from_data(version, istream);
 }
 
@@ -88,49 +134,41 @@ bool merkle_block::from_data(uint32_t version, reader& source)
 {
     reset();
 
-    bool result = !(version < merkle_block::version_minimum);
-    uint64_t hash_count = 0;
+    if (!header_.from_data(source))
+        return false;
 
-    if (result)
-        result = header.from_data(source, true);
+    total_transactions_ = source.read_4_bytes_little_endian();
+    const auto count = source.read_size_little_endian();
 
-    if (result)
-    {
-        hash_count = source.read_variable_uint_little_endian();
-        result = source;
-    }
+    // Guard against potential for arbitary memory allocation.
+    if (count > get_max_block_size(is_bitcoin_cash()))
+        source.invalidate();
+    else
+        hashes_.reserve(count);
 
-    if (result)
-        hashes.reserve(hash_count);
+    for (size_t hash = 0; hash < hashes_.capacity() && source; ++hash)
+        hashes_.push_back(source.read_hash());
 
-    for (uint64_t i = 0; (i < hash_count) && result; ++i)
-    {
-        hashes.push_back(source.read_hash());
-        result = source;
-    }
+    flags_ = source.read_bytes(source.read_size_little_endian());
 
-    if (result)
-    {
-        const auto size = source.read_variable_uint_little_endian();
-        BITCOIN_ASSERT(size <= bc::max_size_t);
-        const auto flag_count = static_cast<size_t>(size);
-        flags = source.read_data(flag_count);
-        result = source && (flags.size() == flag_count);
-    }
+    if (version < merkle_block::version_minimum)
+        source.invalidate();
 
-    if (!result)
+    if (!source)
         reset();
 
-    return result;
+    return source;
 }
 
 data_chunk merkle_block::to_data(uint32_t version) const
 {
     data_chunk data;
-    boost::iostreams::stream<byte_sink<data_chunk>> ostream(data);
+    const auto size = serialized_size(version);
+    data.reserve(size);
+    data_sink ostream(data);
     to_data(version, ostream);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -142,45 +180,123 @@ void merkle_block::to_data(uint32_t version, std::ostream& stream) const
 
 void merkle_block::to_data(uint32_t version, writer& sink) const
 {
-    header.to_data(sink, true);
+    header_.to_data(sink);
 
-    sink.write_variable_uint_little_endian(hashes.size());
+    const auto total32 = safe_unsigned<uint32_t>(total_transactions_);
+    sink.write_4_bytes_little_endian(total32);
+    sink.write_variable_little_endian(hashes_.size());
 
-    for (const auto& hash : hashes)
+    for (const auto& hash : hashes_)
         sink.write_hash(hash);
 
-    sink.write_variable_uint_little_endian(flags.size());
-    sink.write_data(flags);
+    sink.write_variable_little_endian(flags_.size());
+    sink.write_bytes(flags_);
 }
 
-uint64_t merkle_block::serialized_size(uint32_t version) const
+size_t merkle_block::serialized_size(uint32_t version) const
 {
-    return header.serialized_size(true) +
-        variable_uint_size(hashes.size()) + (hash_size * hashes.size()) +
-        variable_uint_size(flags.size()) + flags.size();
+    return header_.serialized_size() + 4u +
+        message::variable_uint_size(hashes_.size()) + (hash_size * hashes_.size()) +
+        message::variable_uint_size(flags_.size()) + flags_.size();
 }
 
-bool operator==(const merkle_block& block_a,
-    const merkle_block& block_b)
+chain::header& merkle_block::header()
 {
-    bool result = (block_a.header == block_b.header) &&
-        (block_a.hashes.size() == block_b.hashes.size()) &&
-        (block_a.flags.size() == block_b.flags.size());
+    return header_;
+}
 
-    for (hash_list::size_type i = 0; i < block_a.hashes.size() && result; i++)
-        result = (block_a.hashes[i] == block_b.hashes[i]);
+const chain::header& merkle_block::header() const
+{
+    return header_;
+}
 
-    for (data_chunk::size_type i = 0; i < block_a.flags.size() && result; i++)
-        result = (block_a.flags[i] == block_b.flags[i]);
+void merkle_block::set_header(const chain::header& value)
+{
+    header_ = value;
+}
+
+void merkle_block::set_header(chain::header&& value)
+{
+    header_ = std::move(value);
+}
+
+size_t merkle_block::total_transactions() const
+{
+    return total_transactions_;
+}
+
+void merkle_block::set_total_transactions(size_t value)
+{
+    total_transactions_ = value;
+}
+
+hash_list& merkle_block::hashes()
+{
+    return hashes_;
+}
+
+const hash_list& merkle_block::hashes() const
+{
+    return hashes_;
+}
+
+void merkle_block::set_hashes(const hash_list& value)
+{
+    hashes_ = value;
+}
+
+void merkle_block::set_hashes(hash_list&& value)
+{
+    hashes_ = std::move(value);
+}
+
+data_chunk& merkle_block::flags()
+{
+    return flags_;
+}
+
+const data_chunk& merkle_block::flags() const
+{
+    return flags_;
+}
+
+void merkle_block::set_flags(const data_chunk& value)
+{
+    flags_ = value;
+}
+
+void merkle_block::set_flags(data_chunk&& value)
+{
+    flags_ = std::move(value);
+}
+
+merkle_block& merkle_block::operator=(merkle_block&& other)
+{
+    header_ = std::move(other.header_);
+    hashes_ = std::move(other.hashes_);
+    flags_ = std::move(other.flags_);
+    return *this;
+}
+
+bool merkle_block::operator==(const merkle_block& other) const
+{
+    auto result = (header_ == other.header_) &&
+        (hashes_.size() == other.hashes_.size()) &&
+        (flags_.size() == other.flags_.size());
+
+    for (size_t i = 0; i < hashes_.size() && result; i++)
+        result = (hashes_[i] == other.hashes_[i]);
+
+    for (size_t i = 0; i < flags_.size() && result; i++)
+        result = (flags_[i] == other.flags_[i]);
 
     return result;
 }
 
-bool operator!=(const merkle_block& block_a,
-    const merkle_block& block_b)
+bool merkle_block::operator!=(const merkle_block& other) const
 {
-    return !(block_a == block_b);
+    return !(*this == other);
 }
 
-} // end message
-} // end libbitcoin
+} // namespace message
+} // namespace libbitcoin

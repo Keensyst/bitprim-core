@@ -1,27 +1,26 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/utility/deadline.hpp>
 
 #include <functional>
 #include <bitcoin/bitcoin/error.hpp>
-#include <bitcoin/bitcoin/utility/assert.hpp>
+#include <bitcoin/bitcoin/utility/asio.hpp>
 #include <bitcoin/bitcoin/utility/thread.hpp>
 #include <bitcoin/bitcoin/utility/threadpool.hpp>
 
@@ -29,14 +28,20 @@ namespace libbitcoin {
 
 using std::placeholders::_1;
 
-// This protects timer_ against concurrent access with no chance of deadlock.
-// This can be dereferenced with an outstanding callback because the timer
-// closure captures an instance of this class and the callback.
-// This is guaranteed to call handler exactly once unless canceled or reset.
+// The timer closure captures an instance of this class and the callback.
+// Deadline is guaranteed to call handler exactly once unless canceled/reset.
+
+deadline::deadline(threadpool& pool)
+  : duration_(asio::seconds(0)),
+    timer_(pool.service())
+    /*, CONSTRUCT_TRACK(deadline)*/
+{
+}
+
 deadline::deadline(threadpool& pool, const asio::duration duration)
   : duration_(duration),
-    timer_(pool.service()),
-    CONSTRUCT_TRACK(deadline)
+    timer_(pool.service())
+    /*, CONSTRUCT_TRACK(deadline)*/
 {
 }
 
@@ -55,7 +60,9 @@ void deadline::start(handler handle, const asio::duration duration)
     ///////////////////////////////////////////////////////////////////////////
     unique_lock lock(mutex_);
 
-    timer_.cancel();
+    // Handling socket error codes creates exception safety.
+    boost_code ignore;
+    timer_.cancel(ignore);
     timer_.expires_from_now(duration);
 
     // async_wait will not invoke the handler within this function.
@@ -66,14 +73,15 @@ void deadline::start(handler handle, const asio::duration duration)
 // Cancellation calls handle_timer with asio::error::operation_aborted.
 // We do not handle the cancelation result code, which will return success
 // in the case of a race in which the timer is already canceled.
-// We don't use strand because cancel must not change context.
 void deadline::stop()
 {
     // Critical Section
     ///////////////////////////////////////////////////////////////////////////
     unique_lock lock(mutex_);
 
-    timer_.cancel();
+    // Handling socket error codes creates exception safety.
+    boost_code ignore;
+    timer_.cancel(ignore);
     ///////////////////////////////////////////////////////////////////////////
 }
 

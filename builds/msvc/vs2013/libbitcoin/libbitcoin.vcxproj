@@ -72,14 +72,15 @@
       <ExcludedFromBuild Condition="$(PlatformToolset) != 'CTP_Nov2013'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\..\..\..\src\chain\block.cpp" />
+    <ClCompile Include="..\..\..\..\src\chain\chain_state.cpp" />
+    <ClCompile Include="..\..\..\..\src\chain\compact.cpp" />
     <ClCompile Include="..\..\..\..\src\chain\header.cpp" />
+    <ClCompile Include="..\..\..\..\src\chain\output_point.cpp" />
     <ClCompile Include="..\..\..\..\src\chain\point.cpp" />
+    <ClCompile Include="..\..\..\..\src\chain\points_value.cpp" />
     <ClCompile Include="..\..\..\..\src\chain\point_iterator.cpp" />
-    <ClCompile Include="..\..\..\..\src\chain\script\conditional_stack.cpp" />
-    <ClCompile Include="..\..\..\..\src\chain\script\evaluation_context.cpp" />
-    <ClCompile Include="..\..\..\..\src\chain\script\opcode.cpp" />
-    <ClCompile Include="..\..\..\..\src\chain\script\operation.cpp" />
-    <ClCompile Include="..\..\..\..\src\chain\script\script.cpp" />
+    <ClCompile Include="..\..\..\..\src\chain\point_value.cpp" />
+    <ClCompile Include="..\..\..\..\src\chain\script.cpp" />
     <ClCompile Include="..\..\..\..\src\chain\transaction.cpp" />
     <ClCompile Include="..\..\..\..\src\chain\input.cpp" />
     <ClCompile Include="..\..\..\..\src\chain\output.cpp" />
@@ -97,13 +98,23 @@
     <ClCompile Include="..\..\..\..\src\config\parameter.cpp" />
     <ClCompile Include="..\..\..\..\src\config\parser.cpp" />
     <ClCompile Include="..\..\..\..\src\config\printer.cpp" />
-    <ClCompile Include="..\..\..\..\src\constants.cpp" />
     <ClCompile Include="..\..\..\..\src\error.cpp" />
     <ClCompile Include="..\..\..\..\src\formats\base_10.cpp" />
     <ClCompile Include="..\..\..\..\src\formats\base_16.cpp" />
     <ClCompile Include="..\..\..\..\src\formats\base_58.cpp" />
     <ClCompile Include="..\..\..\..\src\formats\base_64.cpp" />
     <ClCompile Include="..\..\..\..\src\formats\base_85.cpp" />
+    <ClCompile Include="..\..\..\..\src\log\file_collector.cpp" />
+    <ClCompile Include="..\..\..\..\src\log\file_collector_repository.cpp" />
+    <ClCompile Include="..\..\..\..\src\log\file_counter_formatter.cpp" />
+    <ClCompile Include="..\..\..\..\src\log\sink.cpp" />
+    <ClCompile Include="..\..\..\..\src\log\statsd_sink.cpp" />
+    <ClCompile Include="..\..\..\..\src\log\udp_client_sink.cpp" />
+    <ClCompile Include="..\..\..\..\src\machine\interpreter.cpp" />
+    <ClCompile Include="..\..\..\..\src\machine\number.cpp" />
+    <ClCompile Include="..\..\..\..\src\machine\opcode.cpp" />
+    <ClCompile Include="..\..\..\..\src\machine\operation.cpp" />
+    <ClCompile Include="..\..\..\..\src\machine\program.cpp" />
     <ClCompile Include="..\..\..\..\src\math\checksum.cpp" />
     <ClCompile Include="..\..\..\..\src\math\crypto.cpp" />
     <ClCompile Include="..\..\..\..\src\math\elliptic_curve.cpp" />
@@ -120,15 +131,14 @@
     <ClCompile Include="..\..\..\..\src\math\external\lax_der_parsing.c" />
     <ClCompile Include="..\..\..\..\src\math\external\zeroize.c" />
     <ClCompile Include="..\..\..\..\src\math\hash.cpp" />
-    <ClCompile Include="..\..\..\..\src\math\hash_number.cpp" />
-    <ClCompile Include="..\..\..\..\src\math\script_number.cpp" />
     <ClCompile Include="..\..\..\..\src\math\secp256k1_initializer.cpp" />
     <ClCompile Include="..\..\..\..\src\math\stealth.cpp" />
-    <ClCompile Include="..\..\..\..\src\math\uint256.cpp" />
     <ClCompile Include="..\..\..\..\src\message\address.cpp" />
     <ClCompile Include="..\..\..\..\src\message\alert.cpp" />
     <ClCompile Include="..\..\..\..\src\message\alert_payload.cpp" />
-    <ClCompile Include="..\..\..\..\src\message\block_message.cpp" />
+    <ClCompile Include="..\..\..\..\src\message\block.cpp">
+      <ObjectFileName>$(IntDir)block_message.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\src\message\block_transactions.cpp" />
     <ClCompile Include="..\..\..\..\src\message\compact_block.cpp" />
     <ClCompile Include="..\..\..\..\src\message\fee_filter.cpp" />
@@ -138,15 +148,20 @@
     <ClCompile Include="..\..\..\..\src\message\get_block_transactions.cpp" />
     <ClCompile Include="..\..\..\..\src\message\get_headers.cpp" />
     <ClCompile Include="..\..\..\..\src\message\headers.cpp" />
-    <ClCompile Include="..\..\..\..\src\message\header_message.cpp" />
+    <ClCompile Include="..\..\..\..\src\message\header.cpp">
+      <ObjectFileName>$(IntDir)header_message.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\src\message\memory_pool.cpp" />
     <ClCompile Include="..\..\..\..\src\message\merkle_block.cpp" />
+    <ClCompile Include="..\..\..\..\src\message\messages.cpp" />
     <ClCompile Include="..\..\..\..\src\message\pong.cpp" />
     <ClCompile Include="..\..\..\..\src\message\prefilled_transaction.cpp" />
     <ClCompile Include="..\..\..\..\src\message\reject.cpp" />
-    <ClCompile Include="..\..\..\..\src\message\send_compact_blocks.cpp" />
+    <ClCompile Include="..\..\..\..\src\message\send_compact.cpp" />
     <ClCompile Include="..\..\..\..\src\message\send_headers.cpp" />
-    <ClCompile Include="..\..\..\..\src\message\transaction_message.cpp" />
+    <ClCompile Include="..\..\..\..\src\message\transaction.cpp">
+      <ObjectFileName>$(IntDir)transaction_message.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\src\message\version.cpp" />
     <ClCompile Include="..\..\..\..\src\message\get_address.cpp" />
     <ClCompile Include="..\..\..\..\src\message\get_blocks.cpp" />
@@ -165,21 +180,25 @@
     <ClCompile Include="..\..\..\..\src\unicode\unicode_istream.cpp" />
     <ClCompile Include="..\..\..\..\src\unicode\unicode_ostream.cpp" />
     <ClCompile Include="..\..\..\..\src\unicode\unicode_streambuf.cpp" />
+    <ClCompile Include="..\..\..\..\src\utility\flush_lock.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\deadline.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\dispatcher.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\binary.cpp" />
+    <ClCompile Include="..\..\..\..\src\utility\interprocess_lock.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\istream_reader.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\monitor.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\png.cpp" />
+    <ClCompile Include="..\..\..\..\src\utility\prioritized_mutex.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\random.cpp" />
-    <ClCompile Include="..\..\..\..\src\utility\log.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\ostream_writer.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\conditional_lock.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\scope_lock.cpp" />
+    <ClCompile Include="..\..\..\..\src\utility\sequencer.cpp" />
+    <ClCompile Include="..\..\..\..\src\utility\sequential_lock.cpp" />
+    <ClCompile Include="..\..\..\..\src\utility\socket.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\string.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\thread.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\threadpool.cpp" />
-    <ClCompile Include="..\..\..\..\src\utility\variable_uint_size.cpp" />
     <ClCompile Include="..\..\..\..\src\utility\work.cpp" />
     <ClCompile Include="..\..\..\..\src\wallet\dictionary.cpp" />
     <ClCompile Include="..\..\..\..\src\wallet\ec_public.cpp" />
@@ -200,20 +219,25 @@
     <ClCompile Include="..\..\..\..\src\wallet\payment_address.cpp" />
     <ClCompile Include="..\..\..\..\src\wallet\qrcode.cpp" />
     <ClCompile Include="..\..\..\..\src\wallet\select_outputs.cpp" />
+    <ClCompile Include="..\..\..\..\src\wallet\stealth_receiver.cpp" />
+    <ClCompile Include="..\..\..\..\src\wallet\stealth_sender.cpp" />
     <ClCompile Include="..\..\..\..\src\wallet\stealth_address.cpp" />
     <ClCompile Include="..\..\..\..\src\wallet\uri.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\block.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\chain_state.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\compact.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\header.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\history.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\input_point.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\points_value.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\point_value.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\output_point.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\point.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\point_iterator.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\script\opcode.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\script\operation.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\script\script.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\spend.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\script.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\stealth.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\transaction.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\chain\input.hpp" />
@@ -225,6 +249,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\config\base2.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\config\base58.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\config\base64.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\config\settings.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\config\sodium.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\config\hash160.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\config\hash256.hpp" />
@@ -243,19 +268,41 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\formats\base_64.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\formats\base_85.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\handlers.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\attributes.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\features\counter.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\features\gauge.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\features\metric.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\features\rate.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\features\timer.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\file_char_traits.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\file_collector.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\file_collector_repository.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\file_counter_formatter.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\rotable_file.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\severity.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\sink.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\source.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\statsd_sink.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\statsd_source.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\log\udp_client_sink.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\machine\interpreter.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\machine\number.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\machine\opcode.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\machine\operation.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\machine\program.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\machine\rule_fork.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\machine\script_pattern.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\machine\sighash_algorithm.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\checksum.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\crypto.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\elliptic_curve.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\hash.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\hash_number.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\script_number.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\limits.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\stealth.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\math\uint256.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\messages.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\address.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\alert.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\alert_payload.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\block_message.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\block.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\block_transactions.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\compact_block.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\fee_filter.hpp" />
@@ -265,16 +312,17 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\get_block_transactions.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\get_headers.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\headers.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\header_message.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\header.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\memory_pool.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\merkle_block.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\messages.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\ping.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\pong.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\prefilled_transaction.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\reject.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\send_compact_blocks.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\send_compact.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\send_headers.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\transaction_message.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\transaction.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\version.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\get_address.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\get_blocks.hpp" />
@@ -287,6 +335,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\message\verack.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\unicode\console_streambuf.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\unicode\ifstream.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\unicode\file_lock.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\unicode\ofstream.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\unicode\unicode.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\unicode\unicode_istream.hpp" />
@@ -297,15 +346,22 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\assert.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\atomic.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\color.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\flush_lock.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\deadline.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\delegates.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\enable_shared_from_base.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\interprocess_lock.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\monitor.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\notifier.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\noncopyable.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\pending.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\png.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\prioritized_mutex.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\resubscriber.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\conditional_lock.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\scope_lock.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\sequencer.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\sequential_lock.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\socket.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\synchronizer.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\dispatcher.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\binary.hpp" />
@@ -319,7 +375,6 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\exceptions.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\istream_reader.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\random.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\log.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\ostream_writer.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\reader.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\serializer.hpp" />
@@ -329,7 +384,6 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\threadpool.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\timer.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\track.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\variable_uint_size.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\work.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\utility\writer.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\version.hpp" />
@@ -339,7 +393,8 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\ek_public.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\ek_token.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\qrcode.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\settings.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\stealth_receiver.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\stealth_sender.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\uri_reader.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\encrypted_keys.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\dictionary.hpp" />
@@ -353,8 +408,6 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\select_outputs.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\stealth_address.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\bitcoin\wallet\uri.hpp" />
-    <ClInclude Include="..\..\..\..\src\chain\script\conditional_stack.hpp" />
-    <ClInclude Include="..\..\..\..\src\chain\script\evaluation_context.hpp" />
     <ClInclude Include="..\..\..\..\src\math\external\aes256.h" />
     <ClInclude Include="..\..\..\..\src\math\external\crypto_scrypt.h" />
     <ClInclude Include="..\..\..\..\src\math\external\hmac_sha256.h" />
@@ -378,6 +431,15 @@
   <ItemGroup>
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\formats\base_16.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\formats\base_58.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\log\features\counter.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\log\features\gauge.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\log\features\metric.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\log\features\rate.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\log\features\timer.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\machine\interpreter.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\machine\number.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\machine\operation.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\machine\program.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\math\checksum.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\math\hash.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\array_slice.ipp" />
@@ -386,8 +448,8 @@
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\deserializer.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\endian.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\istream_reader.ipp" />
-    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\notifier.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\ostream_writer.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\pending.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\resubscriber.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\serializer.ipp" />
     <None Include="..\..\..\..\include\bitcoin\bitcoin\impl\utility\subscriber.ipp" />
@@ -402,30 +464,34 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="..\..\..\..\..\..\nuget\boost.1.56.0.0\build\native\boost.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost.1.56.0.0\build\native\boost.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\boost_chrono-vc120.1.56.0.0\build\native\boost_chrono-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_chrono-vc120.1.56.0.0\build\native\boost_chrono-vc120.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\boost_date_time-vc120.1.56.0.0\build\native\boost_date_time-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_date_time-vc120.1.56.0.0\build\native\boost_date_time-vc120.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\boost_filesystem-vc120.1.56.0.0\build\native\boost_filesystem-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_filesystem-vc120.1.56.0.0\build\native\boost_filesystem-vc120.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\boost_locale-vc120.1.56.0.0\build\native\boost_locale-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_locale-vc120.1.56.0.0\build\native\boost_locale-vc120.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\boost_program_options-vc120.1.56.0.0\build\native\boost_program_options-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_program_options-vc120.1.56.0.0\build\native\boost_program_options-vc120.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\boost_regex-vc120.1.56.0.0\build\native\boost_regex-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_regex-vc120.1.56.0.0\build\native\boost_regex-vc120.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\boost_system-vc120.1.56.0.0\build\native\boost_system-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_system-vc120.1.56.0.0\build\native\boost_system-vc120.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\boost_thread-vc120.1.56.0.0\build\native\boost_thread-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_thread-vc120.1.56.0.0\build\native\boost_thread-vc120.targets')" />
-    <Import Project="..\..\..\..\..\..\nuget\secp256k1_vc120.0.1.0.13\build\native\secp256k1_vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\secp256k1_vc120.0.1.0.13\build\native\secp256k1_vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost.1.57.0.0\build\native\boost.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost.1.57.0.0\build\native\boost.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_chrono-vc120.1.57.0.0\build\native\boost_chrono-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_chrono-vc120.1.57.0.0\build\native\boost_chrono-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_date_time-vc120.1.57.0.0\build\native\boost_date_time-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_date_time-vc120.1.57.0.0\build\native\boost_date_time-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_filesystem-vc120.1.57.0.0\build\native\boost_filesystem-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_filesystem-vc120.1.57.0.0\build\native\boost_filesystem-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_iostreams-vc120.1.57.0.0\build\native\boost_iostreams-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_iostreams-vc120.1.57.0.0\build\native\boost_iostreams-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_locale-vc120.1.57.0.0\build\native\boost_locale-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_locale-vc120.1.57.0.0\build\native\boost_locale-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_log-vc120.1.57.0.0\build\native\boost_log-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_log-vc120.1.57.0.0\build\native\boost_log-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_program_options-vc120.1.57.0.0\build\native\boost_program_options-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_program_options-vc120.1.57.0.0\build\native\boost_program_options-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_regex-vc120.1.57.0.0\build\native\boost_regex-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_regex-vc120.1.57.0.0\build\native\boost_regex-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_system-vc120.1.57.0.0\build\native\boost_system-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_system-vc120.1.57.0.0\build\native\boost_system-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\boost_thread-vc120.1.57.0.0\build\native\boost_thread-vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\boost_thread-vc120.1.57.0.0\build\native\boost_thread-vc120.targets')" />
+    <Import Project="..\..\..\..\..\..\nuget\secp256k1_vc120.0.1.0.14\build\native\secp256k1_vc120.targets" Condition="Exists('..\..\..\..\..\..\nuget\secp256k1_vc120.0.1.0.14\build\native\secp256k1_vc120.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost.1.56.0.0\build\native\boost.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost.1.56.0.0\build\native\boost.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_chrono-vc120.1.56.0.0\build\native\boost_chrono-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_chrono-vc120.1.56.0.0\build\native\boost_chrono-vc120.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_date_time-vc120.1.56.0.0\build\native\boost_date_time-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_date_time-vc120.1.56.0.0\build\native\boost_date_time-vc120.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_filesystem-vc120.1.56.0.0\build\native\boost_filesystem-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_filesystem-vc120.1.56.0.0\build\native\boost_filesystem-vc120.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_locale-vc120.1.56.0.0\build\native\boost_locale-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_locale-vc120.1.56.0.0\build\native\boost_locale-vc120.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_program_options-vc120.1.56.0.0\build\native\boost_program_options-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_program_options-vc120.1.56.0.0\build\native\boost_program_options-vc120.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_regex-vc120.1.56.0.0\build\native\boost_regex-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_regex-vc120.1.56.0.0\build\native\boost_regex-vc120.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_system-vc120.1.56.0.0\build\native\boost_system-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_system-vc120.1.56.0.0\build\native\boost_system-vc120.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_thread-vc120.1.56.0.0\build\native\boost_thread-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_thread-vc120.1.56.0.0\build\native\boost_thread-vc120.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\..\nuget\secp256k1_vc120.0.1.0.13\build\native\secp256k1_vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\secp256k1_vc120.0.1.0.13\build\native\secp256k1_vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost.1.57.0.0\build\native\boost.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost.1.57.0.0\build\native\boost.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_chrono-vc120.1.57.0.0\build\native\boost_chrono-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_chrono-vc120.1.57.0.0\build\native\boost_chrono-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_date_time-vc120.1.57.0.0\build\native\boost_date_time-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_date_time-vc120.1.57.0.0\build\native\boost_date_time-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_filesystem-vc120.1.57.0.0\build\native\boost_filesystem-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_filesystem-vc120.1.57.0.0\build\native\boost_filesystem-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_iostreams-vc120.1.57.0.0\build\native\boost_iostreams-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_iostreams-vc120.1.57.0.0\build\native\boost_iostreams-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_locale-vc120.1.57.0.0\build\native\boost_locale-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_locale-vc120.1.57.0.0\build\native\boost_locale-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_log-vc120.1.57.0.0\build\native\boost_log-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_log-vc120.1.57.0.0\build\native\boost_log-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_program_options-vc120.1.57.0.0\build\native\boost_program_options-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_program_options-vc120.1.57.0.0\build\native\boost_program_options-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_regex-vc120.1.57.0.0\build\native\boost_regex-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_regex-vc120.1.57.0.0\build\native\boost_regex-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_system-vc120.1.57.0.0\build\native\boost_system-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_system-vc120.1.57.0.0\build\native\boost_system-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\boost_thread-vc120.1.57.0.0\build\native\boost_thread-vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\boost_thread-vc120.1.57.0.0\build\native\boost_thread-vc120.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\..\nuget\secp256k1_vc120.0.1.0.14\build\native\secp256k1_vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\..\nuget\secp256k1_vc120.0.1.0.14\build\native\secp256k1_vc120.targets'))" />
   </Target>
 </Project>

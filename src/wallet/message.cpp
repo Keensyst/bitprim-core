@@ -1,27 +1,26 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/wallet/message.hpp>
 
-#include <boost/iostreams/stream.hpp>
 #include <bitcoin/bitcoin/constants.hpp>
 #include <bitcoin/bitcoin/define.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/ostream_writer.hpp>
 #include <bitcoin/bitcoin/wallet/ec_private.hpp>
@@ -45,8 +44,8 @@ hash_digest hash_message(data_slice message)
     data_sink ostream(data);
     ostream_writer sink(ostream);
     sink.write_string(prefix);
-    sink.write_variable_uint_little_endian(message.size());
-    sink.write_data(message);
+    sink.write_variable_little_endian(message.size());
+    sink.write_bytes(message.begin(), message.size());
     ostream.flush();
     return bitcoin_hash(data);
 }
@@ -109,7 +108,7 @@ bool magic_to_recovery_id(uint8_t& out_recovery_id, bool& out_compressed,
     if (out_compressed)
         recovery_id -= magic_differential;
 
-    out_recovery_id = static_cast<uint8_t>(recovery_id);
+    out_recovery_id = safe_to_unsigned<uint8_t>(recovery_id);
     return true;
 }
 
@@ -123,7 +122,7 @@ bool sign_message(message_signature& signature, data_slice message,
     const std::string& wif)
 {
     ec_private secret(wif);
-    return (secret && 
+    return (secret &&
         sign_message(signature, message, secret, secret.compressed()));
 }
 

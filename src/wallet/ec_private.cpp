@@ -1,25 +1,25 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/wallet/ec_private.hpp>
 
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <boost/program_options.hpp>
 #include <bitcoin/bitcoin/formats/base_58.hpp>
@@ -33,10 +33,20 @@
 namespace libbitcoin {
 namespace wallet {
 
-const uint8_t ec_private::wif = 0x80;
-const uint8_t ec_private::mainnet_p2kh = 0x00;
-const uint16_t ec_private::mainnet = uint8_t(wif) << 8 | mainnet_p2kh;
 const uint8_t ec_private::compressed_sentinel = 0x01;
+#ifdef LITECOIN
+const uint8_t ec_private::mainnet_wif = 0xb0;
+const uint8_t ec_private::mainnet_p2kh = 0x30;
+#else
+const uint8_t ec_private::mainnet_wif = 0x80;
+const uint8_t ec_private::mainnet_p2kh = 0x00;
+#endif
+
+const uint16_t ec_private::mainnet = to_version(mainnet_p2kh, mainnet_wif);
+
+const uint8_t ec_private::testnet_wif = 0xef;
+const uint8_t ec_private::testnet_p2kh = 0x6f;
+const uint16_t ec_private::testnet = to_version(testnet_p2kh, testnet_wif);
 
 ec_private::ec_private()
   : valid_(false), compress_(true), version_(0), secret_(null_hash)
@@ -81,7 +91,7 @@ bool ec_private::is_wif(data_slice decoded)
     if (!verify_checksum(decoded))
         return false;
 
-    return (size == wif_uncompressed_size) || 
+    return (size == wif_uncompressed_size) ||
         decoded.data()[1 + ec_secret_size] == compressed_sentinel;
 }
 
@@ -193,7 +203,7 @@ const bool ec_private::compressed() const
 ec_public ec_private::to_public() const
 {
     ec_compressed point;
-    return valid_ && secret_to_public(point, secret_) ?  
+    return valid_ && secret_to_public(point, secret_) ?
         ec_public(point, compressed()) : ec_public();
 }
 

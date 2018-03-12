@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/inventory.hpp>
 
 #include <algorithm>
 #include <initializer_list>
-#include <boost/iostreams/stream.hpp>
 #include <bitcoin/bitcoin/math/hash.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
 #include <bitcoin/bitcoin/message/inventory.hpp>
 #include <bitcoin/bitcoin/message/inventory_vector.hpp>
+#include <bitcoin/bitcoin/message/messages.hpp>
 #include <bitcoin/bitcoin/message/version.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/container_source.hpp>
@@ -63,12 +63,18 @@ inventory inventory::factory_from_data(uint32_t version,
 }
 
 inventory::inventory()
+  : inventories_()
 {
 }
 
 inventory::inventory(const inventory_vector::list& values)
+  : inventories_(values)
 {
-    inventories.insert(inventories.end(), values.begin(), values.end());
+}
+
+inventory::inventory(inventory_vector::list&& values)
+  : inventories_(std::move(values))
+{
 }
 
 inventory::inventory(const hash_list& hashes, type_id type)
@@ -78,24 +84,34 @@ inventory::inventory(const hash_list& hashes, type_id type)
         return inventory_vector{ type, hash };
     };
 
-    inventories.resize(hashes.size());
-    std::transform(hashes.begin(), hashes.end(), inventories.begin(), map);
+    inventories_.resize(hashes.size());
+    std::transform(hashes.begin(), hashes.end(), inventories_.begin(), map);
 }
 
 inventory::inventory(const std::initializer_list<inventory_vector>& values)
+  : inventories_(values)
 {
-    inventories.insert(inventories.end(), values.begin(), values.end());
+}
+
+inventory::inventory(const inventory& other)
+  : inventory(other.inventories_)
+{
+}
+
+inventory::inventory(inventory&& other)
+  : inventory(std::move(other.inventories_))
+{
 }
 
 bool inventory::is_valid() const
 {
-    return !inventories.empty();
+    return !inventories_.empty();
 }
 
 void inventory::reset()
 {
-    inventories.clear();
-    inventories.shrink_to_fit();
+    inventories_.clear();
+    inventories_.shrink_to_fit();
 }
 
 bool inventory::from_data(uint32_t version, const data_chunk& data)
@@ -113,35 +129,35 @@ bool inventory::from_data(uint32_t version, std::istream& stream)
 bool inventory::from_data(uint32_t version, reader& source)
 {
     reset();
-    const auto count = source.read_variable_uint_little_endian();
-    auto result = static_cast<bool>(source);
 
-    if (result)
-    {
-        inventories.resize(count);
+    const auto count = source.read_size_little_endian();
 
-        for (auto& inventory: inventories)
-        {
-            result = inventory.from_data(version, source);
+    // Guard against potential for arbitary memory allocation.
+    if (count > max_inventory)
+        source.invalidate();
+    else
+        inventories_.resize(count);
 
-            if (!result)
-                break;
-        }
-    }
+    // Order is required.
+    for (auto& inventory: inventories_)
+        if (!inventory.from_data(version, source))
+            break;
 
-    if (!result)
+    if (!source)
         reset();
 
-    return result;
+    return source;
 }
 
 data_chunk inventory::to_data(uint32_t version) const
 {
     data_chunk data;
+    const auto size = serialized_size(version);
+    data.reserve(size);
     data_sink ostream(data);
     to_data(version, ostream);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -153,59 +169,85 @@ void inventory::to_data(uint32_t version, std::ostream& stream) const
 
 void inventory::to_data(uint32_t version, writer& sink) const
 {
-    sink.write_variable_uint_little_endian(inventories.size());
+    sink.write_variable_little_endian(inventories_.size());
 
-    for (const auto& inventory: inventories)
+    for (const auto& inventory: inventories_)
         inventory.to_data(version, sink);
 }
 
 void inventory::to_hashes(hash_list& out, type_id type) const
 {
-    out.reserve(inventories.size());
+    out.reserve(inventories_.size());
 
-    for (const auto& inventory: inventories)
-        if (inventory.type == type)
-            out.push_back(inventory.hash);
+    for (const auto& element: inventories_)
+        if (element.type() == type)
+            out.push_back(element.hash());
 
     out.shrink_to_fit();
 }
 
 void inventory::reduce(inventory_vector::list& out, type_id type) const
 {
-    out.reserve(inventories.size());
+    out.reserve(inventories_.size());
 
-    for (const auto& inventory: inventories)
-        if (inventory.type == type)
+    for (const auto& inventory: inventories_)
+        if (inventory.type() == type)
             out.push_back(inventory);
 
     out.shrink_to_fit();
 }
 
-uint64_t inventory::serialized_size(uint32_t version) const
+size_t inventory::serialized_size(uint32_t version) const
 {
-    return variable_uint_size(inventories.size()) + inventories.size() *
-        inventory_vector::satoshi_fixed_size(version);
+    return message::variable_uint_size(inventories_.size()) +
+        inventories_.size() * inventory_vector::satoshi_fixed_size(version);
 }
 
 size_t inventory::count(type_id type) const
 {
     const auto is_type = [type](const inventory_vector& element)
     {
-        return element.type == type;
+        return element.type() == type;
     };
 
-    return count_if(inventories.begin(), inventories.end(), is_type);
+    return count_if(inventories_.begin(), inventories_.end(), is_type);
 }
 
-bool operator==(const inventory& left, const inventory& right)
+inventory_vector::list& inventory::inventories()
 {
-    return left.inventories == right.inventories;
+    return inventories_;
 }
 
-bool operator!=(const inventory& left, const inventory& right)
+const inventory_vector::list& inventory::inventories() const
 {
-    return !(left == right);
+    return inventories_;
 }
 
-} // namspace message
-} // namspace libbitcoin
+void inventory::set_inventories(const inventory_vector::list& value)
+{
+    inventories_ = value;
+}
+
+void inventory::set_inventories(inventory_vector::list&& value)
+{
+    inventories_ = std::move(value);
+}
+
+inventory& inventory::operator=(inventory&& other)
+{
+    inventories_ = std::move(other.inventories_);
+    return *this;
+}
+
+bool inventory::operator==(const inventory& other) const
+{
+    return (inventories_ == other.inventories_);
+}
+
+bool inventory::operator!=(const inventory& other) const
+{
+    return !(*this == other);
+}
+
+} // namespace message
+} // namespace libbitcoin

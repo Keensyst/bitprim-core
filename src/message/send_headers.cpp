@@ -1,25 +1,23 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/send_headers.hpp>
 
-#include <boost/iostreams/stream.hpp>
 #include <bitcoin/bitcoin/message/version.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/container_source.hpp>
@@ -57,24 +55,43 @@ send_headers send_headers::factory_from_data(uint32_t version,
     return instance;
 }
 
-uint64_t send_headers::satoshi_fixed_size(uint32_t version)
+size_t send_headers::satoshi_fixed_size(uint32_t version)
 {
     return 0;
 }
 
+// This is a default instance so is invalid.
+// The only way to make this valid is to deserialize it :/.
 send_headers::send_headers()
+  : insufficient_version_(true)
 {
-    reset();
+}
+
+// protected
+send_headers::send_headers(bool insufficient_version)
+  : insufficient_version_(insufficient_version)
+{
+}
+
+send_headers::send_headers(const send_headers& other)
+  : send_headers(other.insufficient_version_)
+{
+}
+
+send_headers::send_headers(send_headers&& other)
+  : send_headers(other.insufficient_version_)
+{
 }
 
 bool send_headers::is_valid() const
 {
-    return !version_unsupported_;
+    return !insufficient_version_;
 }
 
+// This is again a default instance so is invalid.
 void send_headers::reset()
 {
-    version_unsupported_ = false;
+    insufficient_version_ = true;
 }
 
 bool send_headers::from_data(uint32_t version, const data_chunk& data)
@@ -93,19 +110,30 @@ bool send_headers::from_data(uint32_t version, reader& source)
 {
     reset();
 
-    if (version < send_headers::version_minimum)
-        version_unsupported_ = true;
+    // Initialize as valid from deserialization.
+    insufficient_version_ = false;
 
-    return !version_unsupported_;
+    if (version < send_headers::version_minimum)
+    {
+        insufficient_version_ = true;
+        source.invalidate();
+    }
+
+    if (!source)
+        reset();
+
+    return source;
 }
 
 data_chunk send_headers::to_data(uint32_t version) const
 {
     data_chunk data;
+    const auto size = serialized_size(version);
+    data.reserve(size);
     data_sink ostream(data);
     to_data(version, ostream);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -113,10 +141,10 @@ void send_headers::to_data(uint32_t version, std::ostream& stream) const
 {
 }
 
-uint64_t send_headers::serialized_size(uint32_t version) const
+size_t send_headers::serialized_size(uint32_t version) const
 {
     return send_headers::satoshi_fixed_size(version);
 }
 
-} // namspace message
-} // namspace libbitcoin
+} // namespace message
+} // namespace libbitcoin

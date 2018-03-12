@@ -1,25 +1,25 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/network_address.hpp>
 
-#include <boost/iostreams/stream.hpp>
+#include <algorithm>
+#include <cstdint>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/container_source.hpp>
 #include <bitcoin/bitcoin/utility/istream_reader.hpp>
@@ -28,10 +28,17 @@
 namespace libbitcoin {
 namespace message {
 
-ip_address null_address =
+static const ip_address null_address
 {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
+
+// TODO: create derived address that adds the timestamp.
+network_address::network_address(uint32_t timestamp, uint64_t services,
+    ip_address&& ip, uint16_t port)
+  : timestamp_(timestamp), services_(services), ip_(std::move(ip)), port_(port)
+{
+}
 
 network_address network_address::factory_from_data(uint32_t version,
     const data_chunk& data, bool with_timestamp)
@@ -57,20 +64,36 @@ network_address network_address::factory_from_data(uint32_t version,
     return instance;
 }
 
+network_address::network_address()
+  : network_address(0, 0, null_address, 0)
+{
+}
+
+network_address::network_address(const network_address& other)
+  : network_address(other.timestamp_, other.services_, other.ip_, other.port_)
+{
+}
+
+network_address::network_address(network_address&& other)
+  : network_address(other.timestamp_, other.services_,
+      std::move(other.ip_), other.port_)
+{
+}
+
 bool network_address::is_valid() const
 {
-    return (timestamp != 0)
-        || (services != 0)
-        || (port != 0)
-        || (ip != null_address);
+    return (timestamp_ != 0)
+        || (services_ != 0)
+        || (port_ != 0)
+        || (ip_ != null_address);
 }
 
 void network_address::reset()
 {
-    timestamp = 0;
-    services = 0;
-    ip.fill(0);
-    port = 0;
+    timestamp_ = 0;
+    services_ = 0;
+    ip_.fill(0);
+    port_ = 0;
 }
 
 bool network_address::from_data(uint32_t version,
@@ -87,35 +110,36 @@ bool network_address::from_data(uint32_t version,
     return from_data(version, source, with_timestamp);
 }
 
-bool network_address::from_data(uint32_t version,
-    reader& source, bool with_timestamp)
+bool network_address::from_data(uint32_t version, reader& source,
+    bool with_timestamp)
 {
-    auto result = false;
-
     reset();
 
     if (with_timestamp)
-        timestamp = source.read_4_bytes_little_endian();
+        timestamp_ = source.read_4_bytes_little_endian();
 
-    services = source.read_8_bytes_little_endian();
-    const auto ip_size = source.read_data(ip.data(), ip.size());
-    port = source.read_2_bytes_big_endian();
-    result = source && (ip.size() == ip_size);
+    services_ = source.read_8_bytes_little_endian();
+    auto ip = source.read_bytes(ip_.size());
+    port_ = source.read_2_bytes_big_endian();
 
-    if (!result)
+    if (!source)
         reset();
 
-    return result;
+    // TODO: add array to reader interface (can't use template).
+    std::move(ip.begin(), ip.end(), ip_.data());
+    return source;
 }
 
 data_chunk network_address::to_data(uint32_t version,
     bool with_timestamp) const
 {
     data_chunk data;
+    const auto size = serialized_size(version, with_timestamp);
+    data.reserve(size);
     data_sink ostream(data);
     to_data(version, ostream, with_timestamp);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version, with_timestamp));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -130,29 +154,108 @@ void network_address::to_data(uint32_t version,
     writer& sink, bool with_timestamp) const
 {
     if (with_timestamp)
-        sink.write_4_bytes_little_endian(timestamp);
+        sink.write_4_bytes_little_endian(timestamp_);
 
-    sink.write_8_bytes_little_endian(services);
-    sink.write_data(ip.data(), ip.size());
-    sink.write_2_bytes_big_endian(port);
+    sink.write_8_bytes_little_endian(services_);
+    sink.write_bytes(ip_.data(), ip_.size());
+    sink.write_2_bytes_big_endian(port_);
 }
 
-uint64_t network_address::serialized_size(uint32_t version,
+size_t network_address::serialized_size(uint32_t version,
     bool with_timestamp) const
 {
     return network_address::satoshi_fixed_size(version, with_timestamp);
 }
 
-uint64_t network_address::satoshi_fixed_size(uint32_t version,
+size_t network_address::satoshi_fixed_size(uint32_t version,
     bool with_timestamp)
 {
-    uint64_t result = 26;
+    size_t result = 26;
 
     if (with_timestamp)
-        result += 4;
+        result += 4u;
 
     return result;
 }
 
-} // namspace message
-} // namspace libbitcoin
+uint32_t network_address::timestamp() const
+{
+    return timestamp_;
+}
+
+void network_address::set_timestamp(uint32_t value)
+{
+    timestamp_ = value;
+}
+
+uint64_t network_address::services() const
+{
+    return services_;
+}
+
+void network_address::set_services(uint64_t value)
+{
+    services_ = value;
+}
+
+ip_address& network_address::ip()
+{
+    return ip_;
+}
+
+const ip_address& network_address::ip() const
+{
+    return ip_;
+}
+
+void network_address::set_ip(const ip_address& value)
+{
+    ip_ = value;
+}
+
+void network_address::set_ip(ip_address&& value)
+{
+    ip_ = std::move(value);
+}
+
+uint16_t network_address::port() const
+{
+    return port_;
+}
+
+void network_address::set_port(uint16_t value)
+{
+    port_ = value;
+}
+
+network_address& network_address::operator=(network_address&& other)
+{
+    timestamp_ = other.timestamp_;
+    services_ = other.services_;
+    ip_ = std::move(other.ip_);
+    port_ = other.port_;
+    return *this;
+}
+
+network_address& network_address::operator=(const network_address& other)
+{
+    timestamp_ = other.timestamp_;
+    services_ = other.services_;
+    ip_ = other.ip_;
+    port_ = other.port_;
+    return *this;
+}
+
+bool network_address::operator==(const network_address& other) const
+{
+    return (services_ == other.services_) && (port_ == other.port_)
+        && (ip_ == other.ip_);
+}
+
+bool network_address::operator!=(const network_address& other) const
+{
+    return !(*this == other);
+}
+
+} // namespace message
+} // namespace libbitcoin

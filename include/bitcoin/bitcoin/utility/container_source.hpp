@@ -1,30 +1,31 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef LIBBITCOIN_CONTAINER_SOURCE_HPP
 #define LIBBITCOIN_CONTAINER_SOURCE_HPP
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <boost/iostreams/categories.hpp>
+#include <boost/iostreams/stream.hpp>
 #include <bitcoin/bitcoin/define.hpp>
-#include <bitcoin/bitcoin/utility/assert.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
+#include <bitcoin/bitcoin/utility/data.hpp>
 
 namespace libbitcoin {
 
@@ -45,25 +46,16 @@ public:
 
     std::streamsize read(char_type* buffer, std::streamsize size)
     {
-        const auto amount = container_.size() - position_;
-        const auto result = std::min(size,
-            static_cast<std::streamsize>(amount));
+        auto amount = safe_subtract(container_.size(), position_);
+        auto result = std::min(size, static_cast<std::streamsize>(amount));
 
         // TODO: use ios eof symbol (template-based).
         if (result <= 0)
             return -1;
 
         const auto value = static_cast<typename Container::size_type>(result);
-        DEBUG_ONLY(const auto maximum = 
-            std::numeric_limits<typename Container::size_type>::max());
-        BITCOIN_ASSERT(value < maximum);
-        BITCOIN_ASSERT(position_ + value < maximum);
-
-        const auto limit = position_ + value;
-        const auto start = container_.begin() + position_;
-        const auto end = container_.begin() + limit;
-        std::copy(start, end, buffer);
-        position_ = limit;
+        std::copy_n(container_.begin() + position_, value, buffer);
+        position_ += value;
         return result;
     }
 
@@ -75,7 +67,10 @@ private:
 template <typename Container>
 using byte_source = container_source<Container, uint8_t, char>;
 
-using data_source = boost::iostreams::stream<byte_source<data_chunk>>;
+template <typename Container>
+using stream_source = boost::iostreams::stream<byte_source<Container>>;
+
+using data_source = stream_source<data_chunk>;
 
 } // namespace libbitcoin
 

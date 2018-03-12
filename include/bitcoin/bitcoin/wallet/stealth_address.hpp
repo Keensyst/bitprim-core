@@ -1,28 +1,28 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef LIBBITCOIN_WALLET_STEALTH_ADDRESS_HPP
 #define LIBBITCOIN_WALLET_STEALTH_ADDRESS_HPP
 
 #include <cstdint>
+#include <iostream>
 #include <vector>
-#include <bitcoin/bitcoin/chain/script/script.hpp>
+#include <bitcoin/bitcoin/chain/script.hpp>
 #include <bitcoin/bitcoin/constants.hpp>
 #include <bitcoin/bitcoin/define.hpp>
 #include <bitcoin/bitcoin/math/elliptic_curve.hpp>
@@ -31,17 +31,22 @@
 
 namespace libbitcoin {
 namespace wallet {
-    
+
 /// A class for working with stealth payment addresses.
 class BC_API stealth_address
 {
 public:
     /// DEPRECATED: we intend to make p2kh same as payment address versions.
     static const uint8_t mainnet_p2kh;
-    static const uint8_t reuse_key_flag;
-    static const uint8_t max_filter_bits;
 
-    typedef std::vector<ec_compressed> point_list;
+    /// If set and the spend_keys contains the scan_key then the key is reused.
+    static const uint8_t reuse_key_flag;
+
+    /// This is advisory in nature and likely to be enforced by a server.
+    static const size_t min_filter_bits;
+
+    /// This is the protocol limit to the size of a stealth prefix filter.
+    static const size_t max_filter_bits;
 
     /// Constructors.
     stealth_address();

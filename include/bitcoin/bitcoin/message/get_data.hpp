@@ -1,21 +1,20 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef LIBBITCOIN_MESSAGE_GET_DATA_HPP
 #define LIBBITCOIN_MESSAGE_GET_DATA_HPP
@@ -38,6 +37,7 @@ class BC_API get_data
 {
 public:
     typedef std::shared_ptr<get_data> ptr;
+    typedef std::shared_ptr<const get_data> const_ptr;
 
     static get_data factory_from_data(uint32_t version,
         const data_chunk& data);
@@ -46,19 +46,29 @@ public:
 
     get_data();
     get_data(const inventory_vector::list& list);
-    get_data(const hash_list& hashes, inventory::type_id type);
+    get_data(inventory_vector::list&& list);
+    get_data(const hash_list& hashes, type_id type);
     get_data(const std::initializer_list<inventory_vector>& elements);
+    get_data(const get_data& other);
+    get_data(get_data&& other);
 
     bool from_data(uint32_t version, const data_chunk& data) override;
     bool from_data(uint32_t version, std::istream& stream) override;
     bool from_data(uint32_t version, reader& source) override;
+
+    // This class is move assignable but not copy assignable.
+    get_data& operator=(get_data&& other);
+    void operator=(const get_data&) = delete;
+
+    bool operator==(const get_data& other) const;
+    bool operator!=(const get_data& other) const;
 
     static const std::string command;
     static const uint32_t version_minimum;
     static const uint32_t version_maximum;
 };
 
-} // namspace message
-} // namspace libbitcoin
+} // namespace message
+} // namespace libbitcoin
 
 #endif

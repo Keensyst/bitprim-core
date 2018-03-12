@@ -1,25 +1,23 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/ping.hpp>
 
-#include <boost/iostreams/stream.hpp>
 #include <bitcoin/bitcoin/message/version.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/container_source.hpp>
@@ -54,18 +52,23 @@ ping ping::factory_from_data(uint32_t version, reader& source)
     return instance;
 }
 
-uint64_t ping::satoshi_fixed_size(uint32_t version)
+size_t ping::satoshi_fixed_size(uint32_t version)
 {
-    return version < version::level::bip31 ? 0 : sizeof(nonce);
+    return version < version::level::bip31 ? 0 : sizeof(nonce_);
 }
 
 ping::ping()
-  : ping(0)
+  : nonce_(0), nonceless_(false), valid_(false)
 {
 }
 
 ping::ping(uint64_t nonce)
-  : nonce(nonce), valid_(nonce != 0)
+  : nonce_(nonce), nonceless_(false), valid_(true)
+{
+}
+
+ping::ping(const ping& other)
+  : nonce_(other.nonce_), nonceless_(other.nonceless_), valid_(other.valid_)
 {
 }
 
@@ -85,26 +88,27 @@ bool ping::from_data(uint32_t version, reader& source)
 {
     reset();
 
-    if (version >= version::level::bip31)
-        nonce = source.read_8_bytes_little_endian();
+    valid_ = true;
+    nonceless_ = (version < version::level::bip31);
 
-    // Must track valid because is_valid doesn't include version parameter.
-    // Otherwise when below bip31 then the object would always be invalid.
-    valid_ = source;
+    if (!nonceless_)
+        nonce_ = source.read_8_bytes_little_endian();
 
-    if (!valid_)
+    if (!source)
         reset();
 
-    return valid_;
+    return source;
 }
 
 data_chunk ping::to_data(uint32_t version) const
 {
     data_chunk data;
+    const auto size = serialized_size(version);
+    data.reserve(size);
     data_sink ostream(data);
     to_data(version, ostream);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -117,35 +121,53 @@ void ping::to_data(uint32_t version, std::ostream& stream) const
 void ping::to_data(uint32_t version, writer& sink) const
 {
     if (version >= version::level::bip31)
-        sink.write_8_bytes_little_endian(nonce);
+        sink.write_8_bytes_little_endian(nonce_);
 }
 
 bool ping::is_valid() const
 {
-    return valid_;
+    return valid_ || nonceless_ || nonce_ != 0;
 }
 
 void ping::reset()
 {
-    nonce = 0;
+    nonce_ = 0;
+    nonceless_ = false;
+    valid_ = false;
 }
 
-uint64_t ping::serialized_size(uint32_t version) const
+size_t ping::serialized_size(uint32_t version) const
 {
     return satoshi_fixed_size(version);
 }
 
-bool operator==(const ping& left, const ping& right)
+uint64_t ping::nonce() const
 {
-    // Nonce should be zero if not used.
-    return (left.nonce == right.nonce);
+    return nonce_;
 }
 
-bool operator!=(const ping& left, const ping& right)
+void ping::set_nonce(uint64_t value)
 {
-    // Nonce should be zero if not used.
-    return !(left == right);
+    nonce_ = value;
 }
 
-} // namspace message
-} // namspace libbitcoin
+ping& ping::operator=(ping&& other)
+{
+    nonce_ = other.nonce_;
+    return *this;
+}
+
+bool ping::operator==(const ping& other) const
+{
+    // Nonce should be zero if not used.
+    return (nonce_ == other.nonce_);
+}
+
+bool ping::operator!=(const ping& other) const
+{
+    // Nonce should be zero if not used.
+    return !(*this == other);
+}
+
+} // namespace message
+} // namespace libbitcoin

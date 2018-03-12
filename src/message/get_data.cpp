@@ -1,21 +1,20 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/get_data.hpp>
 
@@ -60,8 +59,13 @@ get_data::get_data()
 {
 }
 
-get_data::get_data(const inventory_vector::list& elements)
-  : inventory(elements)
+get_data::get_data(const inventory_vector::list& values)
+  : inventory(values)
+{
+}
+
+get_data::get_data(inventory_vector::list&& values)
+  : inventory(values)
 {
 }
 
@@ -70,8 +74,18 @@ get_data::get_data(const hash_list& hashes, inventory::type_id type)
 {
 }
 
-get_data::get_data(const std::initializer_list<inventory_vector>& elements)
-  : inventory(elements)
+get_data::get_data(const std::initializer_list<inventory_vector>& values)
+  : inventory(values)
+{
+}
+
+get_data::get_data(const get_data& other)
+  : inventory(other)
+{
+}
+
+get_data::get_data(get_data&& other)
+  : inventory(other)
 {
 }
 
@@ -87,16 +101,33 @@ bool get_data::from_data(uint32_t version, std::istream& stream)
 
 bool get_data::from_data(uint32_t version, reader& source)
 {
-    bool result = !(version < get_data::version_minimum);
+    if (!inventory::from_data(version, source))
+        return false;
 
-    if (result)
-        result = inventory::from_data(version, source);
+    if (version < get_data::version_minimum)
+        source.invalidate();
 
-    if (!result)
+    if (!source)
         reset();
 
-    return result;
+    return source;
 }
 
-} // namspace message
-} // namspace libbitcoin
+get_data& get_data::operator=(get_data&& other)
+{
+    set_inventories(other.inventories());
+    return *this;
+}
+
+bool get_data::operator==(const get_data& other) const
+{
+    return (static_cast<inventory>(*this) == static_cast<inventory>(other));
+}
+
+bool get_data::operator!=(const get_data& other) const
+{
+    return (static_cast<inventory>(*this) != static_cast<inventory>(other));
+}
+
+} // namespace message
+} // namespace libbitcoin

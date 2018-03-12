@@ -1,21 +1,20 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef LIBBITCOIN_CHAIN_HISTORY_HPP
 #define LIBBITCOIN_CHAIN_HISTORY_HPP
@@ -23,6 +22,8 @@
 #include <cstdint>
 #include <vector>
 #include <bitcoin/bitcoin/define.hpp>
+#include <bitcoin/bitcoin/chain/input_point.hpp>
+#include <bitcoin/bitcoin/chain/output_point.hpp>
 #include <bitcoin/bitcoin/chain/point.hpp>
 
 namespace libbitcoin {
@@ -36,7 +37,6 @@ enum class point_kind : uint32_t
 };
 
 /// This structure models the client-server protocol in v1/v2/v3.
-/// The height value here is 64 bit, but 32 bits on the wire.
 struct BC_API history_compact
 {
     typedef std::vector<history_compact> list;
@@ -48,7 +48,7 @@ struct BC_API history_compact
     chain::point point;
 
     /// The height of the point.
-    uint64_t height;
+    uint32_t height;
 
     union
     {

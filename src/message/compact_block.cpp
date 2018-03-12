@@ -1,31 +1,33 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/message/compact_block.hpp>
 
 #include <initializer_list>
-#include <boost/iostreams/stream.hpp>
+#include <bitcoin/bitcoin/math/limits.hpp>
+#include <bitcoin/bitcoin/message/messages.hpp>
 #include <bitcoin/bitcoin/message/version.hpp>
 #include <bitcoin/bitcoin/utility/container_sink.hpp>
 #include <bitcoin/bitcoin/utility/container_source.hpp>
 #include <bitcoin/bitcoin/utility/istream_reader.hpp>
 #include <bitcoin/bitcoin/utility/ostream_writer.hpp>
+
+#include <bitcoin/bitcoin/bitcoin_cash_support.hpp>
 
 namespace libbitcoin {
 namespace message {
@@ -58,19 +60,55 @@ compact_block compact_block::factory_from_data(uint32_t version,
     return instance;
 }
 
+compact_block::compact_block()
+  : header_(), nonce_(0), short_ids_(), transactions_()
+{
+}
+
+compact_block::compact_block(const chain::header& header, uint64_t nonce,
+    const short_id_list& short_ids,
+    const prefilled_transaction::list& transactions)
+  : header_(header),
+    nonce_(nonce),
+    short_ids_(short_ids),
+    transactions_(transactions)
+{
+}
+
+compact_block::compact_block(chain::header&& header, uint64_t nonce,
+    short_id_list&& short_ids, prefilled_transaction::list&& transactions)
+  : header_(std::move(header)),
+    nonce_(nonce),
+    short_ids_(std::move(short_ids)),
+    transactions_(std::move(transactions))
+{
+}
+
+compact_block::compact_block(const compact_block& other)
+  : compact_block(other.header_, other.nonce_, other.short_ids_,
+      other.transactions_)
+{
+}
+
+compact_block::compact_block(compact_block&& other)
+  : compact_block(std::move(other.header_), other.nonce_,
+      std::move(other.short_ids_), std::move(other.transactions_))
+{
+}
+
 bool compact_block::is_valid() const
 {
-    return header.is_valid() && !short_ids.empty() && !transactions.empty();
+    return header_.is_valid() && !short_ids_.empty() && !transactions_.empty();
 }
 
 void compact_block::reset()
 {
-    header.reset();
-    nonce = 0;
-    short_ids.clear();
-    short_ids.shrink_to_fit();
-    transactions.clear();
-    transactions.shrink_to_fit();
+    header_ = chain::header{};
+    nonce_ = 0;
+    short_ids_.clear();
+    short_ids_.shrink_to_fit();
+    transactions_.clear();
+    transactions_.shrink_to_fit();
 }
 
 bool compact_block::from_data(uint32_t version, const data_chunk& data)
@@ -89,50 +127,53 @@ bool compact_block::from_data(uint32_t version, reader& source)
 {
     reset();
 
-    auto insufficient_version = (version < compact_block::version_minimum);
-    auto result = header.from_data(source, false);
-    nonce = source.read_8_bytes_little_endian();
-    const auto short_ids_count = source.read_variable_uint_little_endian();
-    result &= static_cast<bool>(source);
+    if (!header_.from_data(source))
+        return false;
 
-    if (result)
-        short_ids.reserve(short_ids_count);
+    nonce_ = source.read_8_bytes_little_endian();
+    auto count = source.read_size_little_endian();
 
-    for (uint64_t i = 0; (i < short_ids_count) && result; ++i)
-    {
-        short_ids.push_back(source.read_mini_hash());
-        result = static_cast<bool>(source);
-    }
+    // Guard against potential for arbitary memory allocation.
+    if (count > get_max_block_size(is_bitcoin_cash()))
+        source.invalidate();
+    else
+        short_ids_.reserve(count);
 
-    const auto transaction_count = source.read_variable_uint_little_endian();
-    result &= static_cast<bool>(source);
+    // Order is required.
+    for (size_t id = 0; id < count && source; ++id)
+        short_ids_.push_back(source.read_mini_hash());
 
-    if (result)
-    {
-        transactions.resize(transaction_count);
+    count = source.read_size_little_endian();
 
-        for (auto& transaction: transactions)
-        {
-            result = transaction.from_data(version, source);
+    // Guard against potential for arbitary memory allocation.
+    if (count > get_max_block_size(is_bitcoin_cash()))
+        source.invalidate();
+    else
+        transactions_.resize(count);
 
-            if (!result)
-                break;
-        }
-    }
+    // Order is required.
+    for (auto& tx : transactions_)
+        if (!tx.from_data(version, source))
+            break;
 
-    if (!result || insufficient_version)
+    if (version < compact_block::version_minimum)
+        source.invalidate();
+
+    if (!source)
         reset();
 
-    return result && !insufficient_version;
+    return source;
 }
 
 data_chunk compact_block::to_data(uint32_t version) const
 {
     data_chunk data;
+    const auto size = serialized_size(version);
+    data.reserve(size);
     data_sink ostream(data);
     to_data(version, ostream);
     ostream.flush();
-    BITCOIN_ASSERT(data.size() == serialized_size(version));
+    BITCOIN_ASSERT(data.size() == size);
     return data;
 }
 
@@ -144,28 +185,122 @@ void compact_block::to_data(uint32_t version, std::ostream& stream) const
 
 void compact_block::to_data(uint32_t version, writer& sink) const
 {
-    header.to_data(sink, false);
-    sink.write_8_bytes_little_endian(nonce);
-    sink.write_variable_uint_little_endian(short_ids.size());
-    for (const auto& element: short_ids)
+    header_.to_data(sink);
+    sink.write_8_bytes_little_endian(nonce_);
+    sink.write_variable_little_endian(short_ids_.size());
+
+    for (const auto& element: short_ids_)
         sink.write_mini_hash(element);
 
-    sink.write_variable_uint_little_endian(transactions.size());
-    for (const auto& element: transactions)
+    sink.write_variable_little_endian(transactions_.size());
+
+    for (const auto& element: transactions_)
         element.to_data(version, sink);
 }
 
-uint64_t compact_block::serialized_size(uint32_t version) const
+size_t compact_block::serialized_size(uint32_t version) const
 {
-    uint64_t size = chain::header::satoshi_fixed_size_without_transaction_count() +
-        variable_uint_size(short_ids.size()) + (short_ids.size() * 6) +
-        variable_uint_size(transactions.size()) + 8;
+    auto size = chain::header::satoshi_fixed_size() +
+        message::variable_uint_size(short_ids_.size()) +
+        (short_ids_.size() * 6u) +
+        message::variable_uint_size(transactions_.size()) + 8u;
 
-    for (const auto& tx: transactions)
+    for (const auto& tx: transactions_)
         size += tx.serialized_size(version);
 
     return size;
 }
 
-} // namspace message
-} // namspace libbitcoin
+chain::header& compact_block::header()
+{
+    return header_;
+}
+
+const chain::header& compact_block::header() const
+{
+    return header_;
+}
+
+void compact_block::set_header(const chain::header& value)
+{
+    header_ = value;
+}
+
+void compact_block::set_header(chain::header&& value)
+{
+    header_ = std::move(value);
+}
+
+uint64_t compact_block::nonce() const
+{
+    return nonce_;
+}
+
+void compact_block::set_nonce(uint64_t value)
+{
+    nonce_ = value;
+}
+
+compact_block::short_id_list& compact_block::short_ids()
+{
+    return short_ids_;
+}
+
+const compact_block::short_id_list& compact_block::short_ids() const
+{
+    return short_ids_;
+}
+
+void compact_block::set_short_ids(const short_id_list& value)
+{
+    short_ids_ = value;
+}
+
+void compact_block::set_short_ids(short_id_list&& value)
+{
+    short_ids_ = std::move(value);
+}
+
+prefilled_transaction::list& compact_block::transactions()
+{
+    return transactions_;
+}
+
+const prefilled_transaction::list& compact_block::transactions() const
+{
+    return transactions_;
+}
+
+void compact_block::set_transactions(const prefilled_transaction::list& value)
+{
+    transactions_ = value;
+}
+
+void compact_block::set_transactions(prefilled_transaction::list&& value)
+{
+    transactions_ = std::move(value);
+}
+
+compact_block& compact_block::operator=(compact_block&& other)
+{
+    header_ = std::move(other.header_);
+    nonce_ = other.nonce_;
+    short_ids_ = std::move(other.short_ids_);
+    transactions_ = std::move(other.transactions_);
+    return *this;
+}
+
+bool compact_block::operator==(const compact_block& other) const
+{
+    return (header_ == other.header_) && (nonce_ == other.nonce_)
+        && (short_ids_ == other.short_ids_)
+        && (transactions_ == other.transactions_);
+}
+
+bool compact_block::operator!=(const compact_block& other) const
+{
+    return !(*this == other);
+}
+
+} // namespace message
+} // namespace libbitcoin

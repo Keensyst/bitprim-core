@@ -1,26 +1,26 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef LIBBITCOIN_WALLET_HD_PRIVATE_KEY_HPP
 #define LIBBITCOIN_WALLET_HD_PRIVATE_KEY_HPP
 
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <bitcoin/bitcoin/define.hpp>
 #include <bitcoin/bitcoin/math/elliptic_curve.hpp>
@@ -38,13 +38,14 @@ class BC_API hd_private
 {
 public:
     static const uint64_t mainnet;
+    static const uint64_t testnet;
 
-    static inline uint32_t to_prefix(uint64_t prefixes)
+    static uint32_t to_prefix(uint64_t prefixes)
     {
         return prefixes >> 32;
     }
 
-    static inline uint64_t to_prefixes(uint32_t private_prefix,
+    static uint64_t to_prefixes(uint32_t private_prefix,
         uint32_t public_prefix)
     {
         return uint64_t(private_prefix) << 32 | public_prefix;
@@ -65,10 +66,13 @@ public:
     bool operator<(const hd_private& other) const;
     bool operator==(const hd_private& other) const;
     bool operator!=(const hd_private& other) const;
-    hd_private& operator=(const hd_private& other);
+    hd_private& operator=(hd_private other);
     friend std::istream& operator>>(std::istream& in, hd_private& to);
     friend std::ostream& operator<<(std::ostream& out,
         const hd_private& of);
+
+    // Swap implementation required to properly handle base class.
+    friend void swap(hd_private& left, hd_private& right);
 
     /// Cast operators.
     operator const ec_secret&() const;

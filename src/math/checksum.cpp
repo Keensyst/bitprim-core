@@ -1,21 +1,20 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/math/checksum.hpp>
 
@@ -42,9 +41,11 @@ bool verify_checksum(data_slice data)
     if (data.size() < checksum_size)
         return false;
 
-    data_slice body(data.begin(), data.end() - checksum_size);
-    auto checksum = from_little_endian_unsafe<uint32_t>(data.end() - checksum_size);
-    return bitcoin_checksum(body) == checksum;
+    // TODO: create a bitcoin_checksum overload that can accept begin/end.
+    const auto checksum_begin = data.end() - checksum_size;
+    data_slice slice(data.begin(), checksum_begin);
+    auto checksum = from_little_endian_unsafe<uint32_t>(checksum_begin);
+    return bitcoin_checksum(slice) == checksum;
 }
 
 } // namespace libbitcoin

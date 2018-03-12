@@ -1,24 +1,25 @@
 /**
- * Copyright (c) 2011-2015 libbitcoin developers (see AUTHORS)
+ * Copyright (c) 2011-2017 libbitcoin developers (see AUTHORS)
  *
  * This file is part of libbitcoin.
  *
- * libbitcoin is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License with
- * additional permissions to the one published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version. For more information see LICENSE.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <bitcoin/bitcoin/wallet/ec_public.hpp>
 
+#include <algorithm>
+#include <iostream>
 #include <boost/program_options.hpp>
 #include <bitcoin/bitcoin/formats/base_16.hpp>
 #include <bitcoin/bitcoin/math/elliptic_curve.hpp>
@@ -33,7 +34,12 @@ namespace wallet {
 const uint8_t ec_public::compressed_even = 0x02;
 const uint8_t ec_public::compressed_odd = 0x03;
 const uint8_t ec_public::uncompressed = 0x04;
+#ifdef LITECOIN
+const uint8_t ec_public::mainnet_p2kh = 0x30;
+#else
 const uint8_t ec_public::mainnet_p2kh = 0x00;
+#endif
+
 
 ec_public::ec_public()
  : valid_(false), compress_(true), point_(null_compressed_point)
@@ -172,7 +178,7 @@ bool ec_public::to_data(data_chunk& out) const
     if (compressed())
     {
         out.resize(ec_compressed_size);
-        std::copy(point_.begin(), point_.end(), out.begin());
+        std::copy_n(point_.begin(), ec_compressed_size, out.begin());
         return true;
     }
 
@@ -180,7 +186,7 @@ bool ec_public::to_data(data_chunk& out) const
     if (to_uncompressed(uncompressed))
     {
         out.resize(ec_uncompressed_size);
-        std::copy(uncompressed.begin(), uncompressed.end(), out.begin());
+        std::copy_n(uncompressed.begin(), ec_uncompressed_size, out.begin());
         return true;
     }
 
